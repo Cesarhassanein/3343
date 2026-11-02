@@ -9,6 +9,7 @@ import '../../../study/presentation/screens/ai_tutor_screen.dart';
 import '../../../feed/presentation/screens/saved_posts_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
+import '../../../../core/services/update_service.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -313,6 +314,14 @@ class _MoreScreenState extends State<MoreScreen> {
                             backgroundColor: WadiqColors.cardSurface,
                           ),
                         );
+                      },
+                    ),
+                    const Divider(color: WadiqColors.surfaceBorder, height: 1, indent: 56),
+                    _buildSettingsTile(
+                      icon: Icons.system_update_rounded,
+                      title: 'التحقق من التحديثات (الإصدار ${UpdateService.currentVersionName})',
+                      onTap: () {
+                        UpdateService.instance.checkForUpdate(context, silent: false);
                       },
                     ),
                   ],

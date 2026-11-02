@@ -415,6 +415,16 @@ class WadiqApiService {
     return false;
   }
 
+  Future<Map<String, dynamic>?> checkAppVersion() async {
+    try {
+      final res = await http.get(Uri.parse(_url('/api/app/version'))).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<Map<String, dynamic>?> reactToPost(String postId, String reaction) async {
     try {
       final headers = await _authHeaders();

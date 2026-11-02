@@ -99,6 +99,31 @@ class ApiRouter {
         return true;
       }
 
+      // 1b. In-App Auto Update: GET /api/app/version
+      if (pathname === '/api/app/version' && method === 'GET') {
+        sendJson(res, 200, {
+          ok: true,
+          latestVersion: '1.0.2',
+          versionCode: 2,
+          downloadUrl: 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
+          directApkUrl: 'https://3343-rosy.vercel.app/api/app/download',
+          releaseNotes: 'تحديث ودق رقم 3: تحسين قسم المنشورات، التفاعلات، التعليقات وتحديثات السرعة والأداء 🚀',
+          isForced: false,
+          minVersionCode: 1,
+        });
+        return true;
+      }
+
+      // 1c. Direct APK Download Redirect: GET /api/app/download
+      if (pathname === '/api/app/download' && method === 'GET') {
+        res.writeHead(302, {
+          'Location': 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end();
+        return true;
+      }
+
       // 2. Media Upload: POST /api/media/upload
       if (pathname === '/api/media/upload' && method === 'POST') {
         const body = await readJsonBody(req);

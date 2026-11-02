@@ -8,6 +8,7 @@ import '../../../more/presentation/screens/more_screen.dart';
 import '../../../creation/presentation/screens/create_post_screen.dart';
 import '../../../creation/presentation/screens/create_reel_screen.dart';
 import '../../../creation/presentation/screens/create_group_channel_screen.dart';
+import '../../../../core/services/update_service.dart';
 
 class MainShellScreen extends StatefulWidget {
   const MainShellScreen({super.key});
@@ -18,6 +19,14 @@ class MainShellScreen extends StatefulWidget {
 
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.instance.checkForUpdate(context, silent: true);
+    });
+  }
 
   void _onTabSelected(int index) {
     setState(() {
