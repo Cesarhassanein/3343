@@ -9,8 +9,16 @@ const socialManager = require('../social/social_manager');
 const supabaseAdmin = require('../database/supabase_admin');
 const config = require('../config');
 
-// Helper to read JSON body
+// Helper to read JSON body (compatible with both raw HTTP streams and Vercel/Express parsed bodies)
 function readJsonBody(req) {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'object') return Promise.resolve(req.body);
+    try {
+      return Promise.resolve(JSON.parse(req.body));
+    } catch (_) {
+      return Promise.resolve({});
+    }
+  }
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => {
