@@ -1,0 +1,38 @@
+name: wadiq
+description: "Wadiq - منصة ودق الاجتماعية والتعليمية المتكاملة"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
+  cached_network_image: ^3.4.1
+  intl: ^0.20.2
+  video_player: ^2.9.2
+  image_picker: ^1.1.2
+  image_picker_for_web: ^3.0.7
+  image_picker_platform_interface: ^2.10.0
+  supabase_flutter: ^2.8.3
+  http: ^1.6.0
+  flutter_markdown: ^0.7.7+1
+  shared_preferences: ^2.5.6
+  flutter_secure_storage: ^9.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

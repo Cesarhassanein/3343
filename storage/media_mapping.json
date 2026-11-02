@@ -1,0 +1,54 @@
+[
+  {
+    "fileId": "BAACAgIAAyEGAAMBAcWVFAADBmrm-d1k95EeoBfEPg_Cb6Y4hW0WAAIZowACVnY5SyIdjOyBBKW8PQQ",
+    "storageProvider": "telegram",
+    "mimeType": "video/mp4",
+    "sizeBytes": 27777406,
+    "telegramMessageId": 6,
+    "telegramChatId": "-1004324693268",
+    "category": "reel",
+    "url": "/api/media/BAACAgIAAyEGAAMBAcWVFAADBmrm-d1k95EeoBfEPg_Cb6Y4hW0WAAIZowACVnY5SyIdjOyBBKW8PQQ",
+    "createdAt": "2026-11-01T08:35:42.143Z",
+    "ownerUsername": "i",
+    "originalName": "Math tekk-1791323690363.mp4"
+  },
+  {
+    "fileId": "AgACAgIAAyEGAAThj67yAAMaaub6Cv8ZlSAkg1GzHNJbSsmLmFQAAiUZaxtUzThLZuUFnD31iHABAAMCAAN4AAM9BA",
+    "storageProvider": "telegram",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 10785,
+    "telegramMessageId": 26,
+    "telegramChatId": "-1003784290034",
+    "category": "image",
+    "url": "/api/media/AgACAgIAAyEGAAThj67yAAMaaub6Cv8ZlSAkg1GzHNJbSsmLmFQAAiUZaxtUzThLZuUFnD31iHABAAMCAAN4AAM9BA",
+    "createdAt": "2026-11-01T08:36:26.306Z",
+    "ownerUsername": "i",
+    "originalName": "post_1793522185560.jpg"
+  },
+  {
+    "fileId": "BAACAgIAAyEGAAMBAcWVFAADB2rm-onTOC2uBsjQmorTGgObM29kAAIcowACVnY5SwH143KQGhWQPQQ",
+    "storageProvider": "telegram",
+    "mimeType": "video/mp4",
+    "sizeBytes": 27777406,
+    "telegramMessageId": 7,
+    "telegramChatId": "-1004324693268",
+    "category": "reel",
+    "url": "/api/media/BAACAgIAAyEGAAMBAcWVFAADB2rm-onTOC2uBsjQmorTGgObM29kAAIcowACVnY5SwH143KQGhWQPQQ",
+    "createdAt": "2026-11-01T08:38:33.719Z",
+    "ownerUsername": "i",
+    "originalName": "Math tekk-1791323690363.mp4"
+  },
+  {
+    "fileId": "AgACAgIAAyEGAAThj67yAAMbaub-RuLXQ3b8QzEG5_eFMcP3yGYAAjkZaxtUzThLoSfVDuFWGGEBAAMCAAN4AAM9BA",
+    "storageProvider": "telegram",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 9510,
+    "telegramMessageId": 27,
+    "telegramChatId": "-1003784290034",
+    "category": "image",
+    "url": "/api/media/AgACAgIAAyEGAAThj67yAAMbaub-RuLXQ3b8QzEG5_eFMcP3yGYAAjkZaxtUzThLoSfVDuFWGGEBAAMCAAN4AAM9BA",
+    "createdAt": "2026-11-01T08:54:31.116Z",
+    "ownerUsername": "i",
+    "originalName": "chat_1793523270653.jpg"
+  }
+]

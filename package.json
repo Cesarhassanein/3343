@@ -1,0 +1,22 @@
+{
+  "name": "wadiq-backend",
+  "version": "1.0.0",
+  "description": "Wadiq - Platform Backend Proxy & Storage Gateway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node backend/test_backend.js"
+  },
+  "keywords": [
+    "wadiq",
+    "academic",
+    "social",
+    "backend"
+  ],
+  "author": "Wadiq Team",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

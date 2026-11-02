@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: wadiq-backend
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_PROVIDER
+        value: telegram
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_IMAGES
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_REELS
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_VOICE
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_REGISTRATIONS
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_AVATARS
+        sync: false
+      - key: TELEGRAM_STORAGE_CHANNEL_AUDIO
+        sync: false
+      - key: TELEGRAM_RATE_LIMIT_OPS_PER_SEC
+        value: "25"
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AGORA_APP_ID
+        sync: false
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: AGORA_TOKEN_EXPIRATION_SECONDS
+        value: "3600"
