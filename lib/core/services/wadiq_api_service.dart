@@ -415,6 +415,51 @@ class WadiqApiService {
     return false;
   }
 
+  Future<Map<String, dynamic>?> reactToPost(String postId, String reaction) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse(_url('/api/posts/$postId/react')),
+        headers: headers,
+        body: jsonEncode({'reaction': reaction}),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> repostPost(String postId) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse(_url('/api/posts/$postId/repost')),
+        headers: headers,
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> voteComment(String commentId, String voteType) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse(_url('/api/comments/$commentId/vote')),
+        headers: headers,
+        body: jsonEncode({'voteType': voteType}),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // --- NOTIFICATIONS ---
   Future<List<Map<String, dynamic>>> getNotifications(String username) async {
     try {

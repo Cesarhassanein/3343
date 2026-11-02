@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_config.dart';
@@ -23,6 +24,7 @@ class PostModel {
   bool isBookmarked;
   bool isReposted;
   bool isFollowedPost;
+  String? userReaction; // 'like', 'love', 'insightful', 'clap', 'laugh', 'sad'
   final List<Map<String, dynamic>> commentsList;
   final DateTime createdAt;
   final DateTime expiresAt;
@@ -45,11 +47,48 @@ class PostModel {
     this.isBookmarked = false,
     this.isReposted = false,
     this.isFollowedPost = false,
+    this.userReaction,
     List<Map<String, dynamic>>? commentsList,
     required this.createdAt,
     required this.expiresAt,
   })  : pollVotes = pollVotes ?? {},
         commentsList = commentsList ?? [];
+
+  String get reactionEmoji {
+    switch (userReaction) {
+      case 'love':
+        return '❤️';
+      case 'insightful':
+        return '💡';
+      case 'clap':
+        return '👏';
+      case 'laugh':
+        return '😂';
+      case 'sad':
+        return '😢';
+      case 'like':
+      default:
+        return '👍';
+    }
+  }
+
+  String get reactionLabel {
+    switch (userReaction) {
+      case 'love':
+        return 'حب';
+      case 'insightful':
+        return 'مفيد';
+      case 'clap':
+        return 'تصفيق';
+      case 'laugh':
+        return 'مضحك';
+      case 'sad':
+        return 'حزين';
+      case 'like':
+      default:
+        return 'إعجاب';
+    }
+  }
 
   int get totalPollVotes => pollVotes.values.fold(0, (sum, count) => sum + count);
 
@@ -78,6 +117,7 @@ class PostModel {
     'likes_count': likesCount,
     'comments_count': commentsCount,
     'reposts_count': repostsCount,
+    'user_reaction': userReaction,
     'created_at': createdAt.toIso8601String(),
     'expires_at': expiresAt.toIso8601String(),
   };
@@ -110,6 +150,7 @@ class PostModel {
       likesCount: (map['likes_count'] as num?)?.toInt() ?? 0,
       commentsCount: (map['comments_count'] as num?)?.toInt() ?? 0,
       repostsCount: (map['reposts_count'] as num?)?.toInt() ?? 0,
+      userReaction: map['user_reaction']?.toString(),
       createdAt: created,
       expiresAt: expires,
     );
@@ -126,11 +167,21 @@ class PostService {
   final Set<String> _repostedPostIds = {};
   final Set<String> _followedPostIds = {};
   final Set<String> _followedUsernames = {};
+  final Set<String> _hiddenPostIds = {};
+  final Set<String> _interestedPostIds = {};
+  final Set<String> _blockedUsernames = {};
   final Set<String> _seenPostIds = {};
+
+  final Map<String, int> _postLikesCountOverrides = {};
+  final Map<String, int> _postRepostsCountOverrides = {};
+  final Map<String, String> _postUserReactions = {};
+
   bool _preferencesLoaded = false;
 
   Set<String> get followedUsernames => Set.unmodifiable(_followedUsernames);
   Set<String> get seenPostIds => Set.unmodifiable(_seenPostIds);
+  Set<String> get hiddenPostIds => Set.unmodifiable(_hiddenPostIds);
+  Set<String> get blockedUsernames => Set.unmodifiable(_blockedUsernames);
 
   Future<void> _loadPreferences() async {
     if (_preferencesLoaded) return;
@@ -151,6 +202,34 @@ class PostService {
       final users = prefs.getStringList('wadiq_followed_users');
       if (users != null) _followedUsernames.addAll(users);
 
+      final hidden = prefs.getStringList('wadiq_hidden_posts');
+      if (hidden != null) _hiddenPostIds.addAll(hidden);
+
+      final interested = prefs.getStringList('wadiq_interested_posts');
+      if (interested != null) _interestedPostIds.addAll(interested);
+
+      final blocked = prefs.getStringList('wadiq_blocked_users');
+      if (blocked != null) _blockedUsernames.addAll(blocked);
+
+      // Overrides
+      final likesJson = prefs.getString('wadiq_post_likes_counts');
+      if (likesJson != null) {
+        final decoded = jsonDecode(likesJson) as Map<String, dynamic>;
+        decoded.forEach((k, v) => _postLikesCountOverrides[k] = (v as num).toInt());
+      }
+
+      final repostsJson = prefs.getString('wadiq_post_reposts_counts');
+      if (repostsJson != null) {
+        final decoded = jsonDecode(repostsJson) as Map<String, dynamic>;
+        decoded.forEach((k, v) => _postRepostsCountOverrides[k] = (v as num).toInt());
+      }
+
+      final reactionsJson = prefs.getString('wadiq_post_reactions');
+      if (reactionsJson != null) {
+        final decoded = jsonDecode(reactionsJson) as Map<String, dynamic>;
+        decoded.forEach((k, v) => _postUserReactions[k] = v.toString());
+      }
+
       _preferencesLoaded = true;
     } catch (_) {}
   }
@@ -159,6 +238,8 @@ class PostService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('wadiq_liked_posts', _likedPostIds.toList());
+      await prefs.setString('wadiq_post_likes_counts', jsonEncode(_postLikesCountOverrides));
+      await prefs.setString('wadiq_post_reactions', jsonEncode(_postUserReactions));
     } catch (_) {}
   }
 
@@ -173,6 +254,7 @@ class PostService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('wadiq_reposted_posts', _repostedPostIds.toList());
+      await prefs.setString('wadiq_post_reposts_counts', jsonEncode(_postRepostsCountOverrides));
     } catch (_) {}
   }
 
@@ -183,18 +265,65 @@ class PostService {
     } catch (_) {}
   }
 
+  Future<void> _saveHiddenPosts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('wadiq_hidden_posts', _hiddenPostIds.toList());
+    } catch (_) {}
+  }
+
+  Future<void> _saveInterestedPosts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('wadiq_interested_posts', _interestedPostIds.toList());
+    } catch (_) {}
+  }
+
+  Future<void> _saveBlockedUsers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('wadiq_blocked_users', _blockedUsernames.toList());
+    } catch (_) {}
+  }
+
   void markPostAsSeen(String postId) {
     _seenPostIds.add(postId);
   }
 
+  void markNotInterested(String postId) {
+    _hiddenPostIds.add(postId);
+    _saveHiddenPosts();
+  }
+
+  void markInterested(String postId) {
+    _interestedPostIds.add(postId);
+    _saveInterestedPosts();
+  }
+
+  void blockUser(String username) {
+    final clean = username.replaceAll('@', '').trim().toLowerCase();
+    _blockedUsernames.add(clean);
+    _saveBlockedUsers();
+  }
+
+  bool isUserBlocked(String username) {
+    final clean = username.replaceAll('@', '').trim().toLowerCase();
+    return _blockedUsernames.contains(clean);
+  }
+
+  bool isPostHidden(String postId) {
+    return _hiddenPostIds.contains(postId);
+  }
+
   List<PostModel> applySeenFilter(List<PostModel> posts) {
-    if (posts.length <= 5) return posts;
-    final unseen = posts.where((p) => !_seenPostIds.contains(p.id)).toList();
-    if (unseen.length < 3) return posts;
+    final nonBlocked = posts.where((p) => !_blockedUsernames.contains(p.authorUsername.toLowerCase()) && !_hiddenPostIds.contains(p.id)).toList();
+    if (nonBlocked.length <= 5) return nonBlocked;
+    final unseen = nonBlocked.where((p) => !_seenPostIds.contains(p.id)).toList();
+    if (unseen.length < 3) return nonBlocked;
     return unseen;
   }
 
-  bool isUserFollowed(String username) => _followedUsernames.contains(username.toLowerCase());
+  bool isUserFollowed(String username) => _followedUsernames.contains(username.replaceAll('@', '').trim().toLowerCase());
 
   void toggleFollowUser(String username) {
     final clean = username.replaceAll('@', '').trim().toLowerCase();
@@ -202,10 +331,11 @@ class PostService {
       _followedUsernames.remove(clean);
     } else {
       _followedUsernames.add(clean);
-      NotificationService.instance.addNotification(
+      NotificationService.instance.sendNotificationToUser(
+        targetUsername: clean,
         type: 'follow',
         title: 'متابعة جديدة',
-        body: 'بدأت بمتابعة الحساب @$clean لتصلك كافة منشوراته أولاً بأول.',
+        body: 'بدأ @${AuthService.instance.currentUser.username} بمتابعتك.',
         targetType: 'user',
         targetId: clean,
       );
@@ -244,6 +374,25 @@ class PostService {
             p.isFollowedPost = _followedPostIds.contains(p.id);
             p.isReposted = _repostedPostIds.contains(p.id);
 
+            // Apply authoritative local overrides for like/repost counters
+            if (_postLikesCountOverrides.containsKey(p.id)) {
+              p.likesCount = _postLikesCountOverrides[p.id]!;
+            } else if (p.isLiked && p.likesCount == 0) {
+              p.likesCount = 1;
+            }
+
+            if (_postRepostsCountOverrides.containsKey(p.id)) {
+              p.repostsCount = _postRepostsCountOverrides[p.id]!;
+            } else if (p.isReposted && p.repostsCount == 0) {
+              p.repostsCount = 1;
+            }
+
+            if (_postUserReactions.containsKey(p.id)) {
+              p.userReaction = _postUserReactions[p.id];
+            } else if (p.isLiked) {
+              p.userReaction = 'like';
+            }
+
             // Asynchronously load persisted comments from backend
             WadiqApiService.instance.getPostComments(p.id).then((loadedComments) {
               if (loadedComments.isNotEmpty) {
@@ -253,7 +402,9 @@ class PostService {
               }
             });
           }
-          return combined;
+
+          // Filter out blocked users and hidden posts
+          return combined.where((p) => !_blockedUsernames.contains(p.authorUsername.toLowerCase()) && !_hiddenPostIds.contains(p.id)).toList();
         }
       } catch (e) {
         debugPrint('Error fetching posts from Supabase: $e');
@@ -266,12 +417,32 @@ class PostService {
       p.isBookmarked = _bookmarkedPostIds.contains(p.id);
       p.isFollowedPost = _followedPostIds.contains(p.id);
       p.isReposted = _repostedPostIds.contains(p.id);
+
+      if (_postLikesCountOverrides.containsKey(p.id)) {
+        p.likesCount = _postLikesCountOverrides[p.id]!;
+      } else if (p.isLiked && p.likesCount == 0) {
+        p.likesCount = 1;
+      }
+
+      if (_postRepostsCountOverrides.containsKey(p.id)) {
+        p.repostsCount = _postRepostsCountOverrides[p.id]!;
+      } else if (p.isReposted && p.repostsCount == 0) {
+        p.repostsCount = 1;
+      }
+
+      if (_postUserReactions.containsKey(p.id)) {
+        p.userReaction = _postUserReactions[p.id];
+      }
     }
-    return local;
+    return local.where((p) => !_blockedUsernames.contains(p.authorUsername.toLowerCase()) && !_hiddenPostIds.contains(p.id)).toList();
   }
 
   List<PostModel> filterFollowedPosts(List<PostModel> allPosts) {
-    return allPosts.where((p) => _followedUsernames.contains(p.authorUsername.toLowerCase())).toList();
+    return allPosts.where((p) =>
+      _followedUsernames.contains(p.authorUsername.toLowerCase()) &&
+      !_blockedUsernames.contains(p.authorUsername.toLowerCase()) &&
+      !_hiddenPostIds.contains(p.id)
+    ).toList();
   }
 
   Future<List<PostModel>> fetchPostsByUser(String username) async {
@@ -339,7 +510,7 @@ class PostService {
   }
 
   void votePoll(PostModel post, int optionIndex) {
-    if (post.userVotedOption != null) return; // Already voted
+    if (post.userVotedOption != null) return;
     post.userVotedOption = optionIndex;
     post.pollVotes[optionIndex] = (post.pollVotes[optionIndex] ?? 0) + 1;
 
@@ -352,27 +523,43 @@ class PostService {
     );
   }
 
-  void toggleLike(PostModel post) {
+  void toggleLike(PostModel post, {String reaction = 'like'}) {
     final user = AuthService.instance.currentUser;
-    post.isLiked = !post.isLiked;
-    post.likesCount += post.isLiked ? 1 : -1;
-    if (post.likesCount < 0) post.likesCount = 0;
 
-    if (post.isLiked) {
+    if (post.isLiked && post.userReaction == reaction) {
+      // Toggle off / unlike
+      post.isLiked = false;
+      post.userReaction = null;
+      post.likesCount = (post.likesCount - 1).clamp(0, 999999);
+      _likedPostIds.remove(post.id);
+      _postUserReactions.remove(post.id);
+    } else if (post.isLiked && post.userReaction != reaction) {
+      // Switch reaction without changing count
+      post.userReaction = reaction;
+      _postUserReactions[post.id] = reaction;
+    } else {
+      // New like/reaction
+      post.isLiked = true;
+      post.userReaction = reaction;
+      post.likesCount += 1;
       _likedPostIds.add(post.id);
+      _postUserReactions[post.id] = reaction;
+
       NotificationService.instance.sendNotificationToUser(
         targetUsername: post.authorUsername,
         type: 'like',
-        title: 'إعجاب جديد بمنشورك',
-        body: 'سجّل @${user.username} إعجابه بمنشورك الأكاديمي.',
+        title: 'تفاعل جديد مع منشورك ${post.reactionEmoji}',
+        body: 'تفاعل @${user.username} بـ (${post.reactionLabel}) مع منشورك الأكاديمي.',
         targetType: 'post',
         targetId: post.id,
       );
-    } else {
-      _likedPostIds.remove(post.id);
     }
 
+    _postLikesCountOverrides[post.id] = post.likesCount;
     _saveLikedPosts();
+
+    // Call backend API
+    WadiqApiService.instance.reactToPost(post.id, reaction);
 
     final client = SupabaseConfig.client;
     if (client != null) {
@@ -397,15 +584,14 @@ class PostService {
   void toggleRepost(PostModel post) {
     final user = AuthService.instance.currentUser;
     post.isReposted = !post.isReposted;
-    post.repostsCount += post.isReposted ? 1 : -1;
-    if (post.repostsCount < 0) post.repostsCount = 0;
+    post.repostsCount = (post.repostsCount + (post.isReposted ? 1 : -1)).clamp(0, 999999);
 
     if (post.isReposted) {
       _repostedPostIds.add(post.id);
       NotificationService.instance.sendNotificationToUser(
         targetUsername: post.authorUsername,
         type: 'repost',
-        title: 'إعادة نشر لمنشورك',
+        title: 'إعادة نشر لمنشورك 🔄',
         body: 'أعاد @${user.username} نشر منشورك الأكاديمي في مساره.',
         targetType: 'post',
         targetId: post.id,
@@ -413,7 +599,12 @@ class PostService {
     } else {
       _repostedPostIds.remove(post.id);
     }
+
+    _postRepostsCountOverrides[post.id] = post.repostsCount;
     _saveRepostedPosts();
+
+    // Call backend API
+    WadiqApiService.instance.repostPost(post.id);
 
     final client = SupabaseConfig.client;
     if (client != null) {
@@ -441,20 +632,90 @@ class PostService {
     }
   }
 
-  void addComment(PostModel post, {required String text, String? replyToAuthor}) {
+  void toggleCommentVote(PostModel post, Map<String, dynamic> comment, String voteType) {
+    final bool isDislike = voteType == 'dislike';
+    if (isDislike) {
+      final wasDisliked = comment['isDisliked'] == true;
+      comment['isDisliked'] = !wasDisliked;
+      comment['dislikesCount'] = ((comment['dislikesCount'] ?? 0) as int) + (!wasDisliked ? 1 : -1);
+      if ((comment['dislikesCount'] as int) < 0) comment['dislikesCount'] = 0;
+
+      if (!wasDisliked && comment['isLiked'] == true) {
+        comment['isLiked'] = false;
+        comment['likesCount'] = (((comment['likesCount'] ?? 1) as int) - 1).clamp(0, 999999);
+      }
+    } else {
+      final wasLiked = comment['isLiked'] == true;
+      comment['isLiked'] = !wasLiked;
+      comment['likesCount'] = ((comment['likesCount'] ?? 0) as int) + (!wasLiked ? 1 : -1);
+      if ((comment['likesCount'] as int) < 0) comment['likesCount'] = 0;
+
+      if (!wasLiked && comment['isDisliked'] == true) {
+        comment['isDisliked'] = false;
+        comment['dislikesCount'] = (((comment['dislikesCount'] ?? 1) as int) - 1).clamp(0, 999999);
+      }
+    }
+
+    final commentId = comment['id']?.toString() ?? '';
+    if (commentId.isNotEmpty) {
+      WadiqApiService.instance.voteComment(commentId, voteType);
+    }
+  }
+
+  void setCommentReaction(Map<String, dynamic> comment, String reaction) {
+    comment['userReaction'] = reaction;
+    if (comment['isLiked'] != true) {
+      comment['isLiked'] = true;
+      comment['likesCount'] = ((comment['likesCount'] ?? 0) as int) + 1;
+    }
+    final commentId = comment['id']?.toString() ?? '';
+    if (commentId.isNotEmpty) {
+      WadiqApiService.instance.voteComment(commentId, 'like');
+    }
+  }
+
+  void addComment(
+    PostModel post, {
+    required String text,
+    String? replyToAuthor,
+    String? parentCommentId,
+  }) {
     final user = AuthService.instance.currentUser;
     post.commentsCount += 1;
+    final nowId = 'comment_${DateTime.now().millisecondsSinceEpoch}';
+
     final commentData = {
-      'author': user.fullName,
+      'id': nowId,
+      'author': user.fullName.isNotEmpty ? user.fullName : user.username,
       'username': user.username,
       'role': user.role,
       'time': 'الآن',
       'text': text.trim(),
       'replyTo': replyToAuthor,
-      'likes': 0,
+      'parentCommentId': parentCommentId,
+      'likesCount': 0,
+      'dislikesCount': 0,
       'isLiked': false,
+      'isDisliked': false,
+      'replies': <Map<String, dynamic>>[],
     };
-    post.commentsList.add(commentData);
+
+    if (parentCommentId != null) {
+      final parent = post.commentsList.firstWhere(
+        (c) => c['id']?.toString() == parentCommentId,
+        orElse: () => <String, dynamic>{},
+      );
+      if (parent.isNotEmpty) {
+        if (parent['replies'] == null) {
+          parent['replies'] = <Map<String, dynamic>>[];
+        }
+        (parent['replies'] as List).add(commentData);
+      } else {
+        post.commentsList.add(commentData);
+      }
+    } else {
+      post.commentsList.add(commentData);
+    }
 
     // Save permanently in Backend comments store
     WadiqApiService.instance.addPostComment(post.id, commentData);
@@ -474,7 +735,7 @@ class PostService {
       targetUsername: post.authorUsername,
       type: 'comment',
       title: 'تعليق جديد على منشورك',
-      body: 'علّق @${user.username} على منشورك: "$text"',
+      body: 'علّق ${user.fullName} (@${user.username}) على منشورك: "$text"',
       targetType: 'post',
       targetId: post.id,
     );

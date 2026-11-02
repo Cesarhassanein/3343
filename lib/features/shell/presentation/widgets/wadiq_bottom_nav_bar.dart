@@ -39,7 +39,7 @@ class WadiqBottomNavBar extends StatelessWidget {
               index: 0,
               icon: Icons.home_rounded,
               outlineIcon: Icons.home_outlined,
-              label: "الرئيسية",
+              label: "منشورات",
             ),
             // Tab 2: Reels
             _buildNavItem(

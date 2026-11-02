@@ -337,6 +337,45 @@ class ApiRouter {
         return true;
       }
 
+      // 16b. Post Like / React: POST /api/posts/:postId/react
+      const reactPostMatch = pathname.match(/^\/api\/posts\/([^/]+)\/react$/);
+      if (reactPostMatch && method === 'POST') {
+        const postId = reactPostMatch[1];
+        const body = await readJsonBody(req);
+        const auth = getAuthUser(req);
+        const username = auth ? auth.username : (body.username || 'user');
+        const reactionType = body.reaction || 'like';
+
+        const result = await socialManager.toggleLikePost(postId, username, reactionType);
+        sendJson(res, 200, result);
+        return true;
+      }
+
+      // 16c. Post Repost: POST /api/posts/:postId/repost
+      const repostPostMatch = pathname.match(/^\/api\/posts\/([^/]+)\/repost$/);
+      if (repostPostMatch && method === 'POST') {
+        const postId = repostPostMatch[1];
+        const body = await readJsonBody(req);
+        const auth = getAuthUser(req);
+        const username = auth ? auth.username : (body.username || 'user');
+
+        const result = await socialManager.toggleRepostPost(postId, username);
+        sendJson(res, 200, result);
+        return true;
+      }
+
+      // 16d. Comment Vote: POST /api/comments/:commentId/vote
+      const commentVoteMatch = pathname.match(/^\/api\/comments\/([^/]+)\/vote$/);
+      if (commentVoteMatch && method === 'POST') {
+        const commentId = commentVoteMatch[1];
+        const body = await readJsonBody(req);
+        const voteType = body.voteType || 'like';
+
+        const result = await socialManager.voteComment(commentId, voteType);
+        sendJson(res, 200, result);
+        return true;
+      }
+
       // 17. Notifications: GET /api/notifications
       if (pathname === '/api/notifications' && method === 'GET') {
         const auth = getAuthUser(req);

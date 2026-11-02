@@ -60,6 +60,7 @@ class SocialManager {
         author_username: authorUsername,
         author_avatar: authorAvatar,
         content: content,
+        reply_to: commentData.replyTo || commentData.reply_to || null,
       });
 
       const row = inserted && inserted.length > 0 ? inserted[0] : null;
@@ -71,6 +72,9 @@ class SocialManager {
         username: authorUsername,
         avatarUrl: authorAvatar,
         text: content,
+        replyTo: commentData.replyTo || commentData.reply_to || null,
+        likesCount: 0,
+        dislikesCount: 0,
         time: 'الآن',
         createdAt: row ? row.created_at : new Date().toISOString(),
       };
@@ -81,9 +85,84 @@ class SocialManager {
       author: authorName,
       username: authorUsername,
       text: content,
+      replyTo: commentData.replyTo || commentData.reply_to || null,
+      likesCount: 0,
+      dislikesCount: 0,
       time: 'الآن',
       createdAt: new Date().toISOString(),
     };
+  }
+
+  // --- POST INTERACTIONS (LIKES & REPOSTS) ---
+  async toggleLikePost(postId, username, reactionType = 'like') {
+    if (!postId) return { ok: false, error: 'Missing postId' };
+    const cleanUser = (username || 'user').replaceAll('@', '').toLowerCase();
+    if (supabaseAdmin.isConfigured) {
+      try {
+        const rows = await supabaseAdmin.select('posts', `id=eq.${postId}&select=likes_count`);
+        if (rows && rows.length > 0) {
+          const currentLikes = rows[0].likes_count || 0;
+          const likeCheck = await supabaseAdmin.select('post_likes', `post_id=eq.${postId}&user_id=eq.${cleanUser}`);
+          let newCount = currentLikes;
+          let isLiked = false;
+          if (likeCheck && likeCheck.length > 0) {
+            await supabaseAdmin.delete('post_likes', `post_id=eq.${postId}&user_id=eq.${cleanUser}`);
+            newCount = Math.max(0, currentLikes - 1);
+            isLiked = false;
+          } else {
+            await supabaseAdmin.insert('post_likes', { post_id: postId, user_id: cleanUser });
+            newCount = currentLikes + 1;
+            isLiked = true;
+          }
+          await supabaseAdmin.update('posts', { likes_count: newCount }, `id=eq.${postId}`);
+          return { ok: true, isLiked, likesCount: newCount, reaction: isLiked ? reactionType : null };
+        }
+      } catch (err) {
+        console.error('[SocialManager] toggleLikePost error:', err.message);
+      }
+    }
+    return { ok: true, isLiked: true, likesCount: 1, reaction: reactionType };
+  }
+
+  async toggleRepostPost(postId, username) {
+    if (!postId) return { ok: false, error: 'Missing postId' };
+    if (supabaseAdmin.isConfigured) {
+      try {
+        const rows = await supabaseAdmin.select('posts', `id=eq.${postId}&select=reposts_count`);
+        if (rows && rows.length > 0) {
+          const current = rows[0].reposts_count || 0;
+          const newCount = current + 1;
+          await supabaseAdmin.update('posts', { reposts_count: newCount }, `id=eq.${postId}`);
+          return { ok: true, isReposted: true, repostsCount: newCount };
+        }
+      } catch (err) {
+        console.error('[SocialManager] toggleRepostPost error:', err.message);
+      }
+    }
+    return { ok: true, isReposted: true, repostsCount: 1 };
+  }
+
+  async voteComment(commentId, voteType = 'like') {
+    if (!commentId) return { ok: false, error: 'Missing commentId' };
+    if (supabaseAdmin.isConfigured) {
+      try {
+        const rows = await supabaseAdmin.select('comments', `id=eq.${commentId}&select=likes_count,dislikes_count`);
+        if (rows && rows.length > 0) {
+          let likes = rows[0].likes_count || 0;
+          let dislikes = rows[0].dislikes_count || 0;
+          if (voteType === 'dislike') {
+            dislikes += 1;
+          } else {
+            likes += 1;
+          }
+          await supabaseAdmin.update('comments', { likes_count: likes, dislikes_count: dislikes }, `id=eq.${commentId}`);
+          return { ok: true, likesCount: likes, dislikesCount: dislikes };
+        }
+      } catch (err) {
+        console.error('[SocialManager] voteComment error:', err.message);
+      }
+    }
+    return { ok: true, likesCount: voteType === 'like' ? 1 : 0, dislikesCount: voteType === 'dislike' ? 1 : 0 };
   }
 
   // --- NOTIFICATIONS ---

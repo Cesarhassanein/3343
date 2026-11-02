@@ -9,14 +9,16 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/wadiq_api_service.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  final String? initialContent;
+
+  const CreatePostScreen({super.key, this.initialContent});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
-  final TextEditingController _contentController = TextEditingController();
+  late final TextEditingController _contentController;
   final TextEditingController _imageUrlController = TextEditingController();
   final TextEditingController _pollQuestionController = TextEditingController();
   final List<TextEditingController> _pollOptionControllers = [];
@@ -29,6 +31,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void initState() {
     super.initState();
+    _contentController = TextEditingController(text: widget.initialContent ?? '');
     _pollOptionControllers.add(TextEditingController(text: "نعم / أوافق"));
     _pollOptionControllers.add(TextEditingController(text: "لا / أعارض"));
   }

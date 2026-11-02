@@ -89,6 +89,55 @@ class _PostCardState extends State<PostCard> {
                                     post.authorName,
                                     style: WadiqTypography.titleMedium.copyWith(fontSize: 15),
                                   ),
+                                  if (!isAuthor) ...[
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          PostService.instance.toggleFollowUser(post.authorUsername);
+                                        });
+                                        final isNowFollowed = PostService.instance.isUserFollowed(post.authorUsername);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(isNowFollowed ? "بدأت بمتابعة ${post.authorName}!" : "تم إلغاء متابعة ${post.authorName}."),
+                                            backgroundColor: WadiqColors.primaryAmber,
+                                            duration: const Duration(seconds: 1),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: PostService.instance.isUserFollowed(post.authorUsername) ? WadiqColors.elevatedSurface : WadiqColors.primaryAmber.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: PostService.instance.isUserFollowed(post.authorUsername) ? WadiqColors.surfaceBorder : WadiqColors.primaryAmber,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              PostService.instance.isUserFollowed(post.authorUsername) ? Icons.check_rounded : Icons.add_rounded,
+                                              size: 12,
+                                              color: PostService.instance.isUserFollowed(post.authorUsername) ? Colors.white70 : WadiqColors.primaryAmber,
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              PostService.instance.isUserFollowed(post.authorUsername) ? "متابع" : "متابعة",
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: PostService.instance.isUserFollowed(post.authorUsername) ? Colors.white70 : WadiqColors.primaryAmber,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(width: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -282,7 +331,7 @@ class _PostCardState extends State<PostCard> {
         return Image.memory(
           bytes,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Center(
+          errorBuilder: (context, error, stackTrace) => const Center(
             child: Icon(Icons.broken_image_rounded, color: WadiqColors.textMuted, size: 36),
           ),
         );
@@ -307,7 +356,7 @@ class _PostCardState extends State<PostCard> {
           ),
         );
       },
-      errorBuilder: (_, __, ___) => Container(
+      errorBuilder: (context, error, stackTrace) => Container(
         height: 100,
         color: WadiqColors.elevatedSurface,
         child: const Center(
