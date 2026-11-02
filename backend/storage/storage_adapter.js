@@ -166,10 +166,14 @@ class TelegramStorageAdapter extends BaseStorageAdapter {
 class LocalStorageAdapter extends BaseStorageAdapter {
   constructor() {
     super();
-    this.uploadDir = path.resolve(__dirname, '..', '..', 'storage', 'uploads');
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-    }
+    this.uploadDir = process.env.VERCEL
+      ? path.join(require('os').tmpdir(), 'wadiq-uploads')
+      : path.resolve(__dirname, '..', '..', 'storage', 'uploads');
+    try {
+      if (!fs.existsSync(this.uploadDir)) {
+        fs.mkdirSync(this.uploadDir, { recursive: true });
+      }
+    } catch (_) {}
   }
 
   async uploadFile(buffer, filename, mimeType, category = 'image', metadata = {}) {

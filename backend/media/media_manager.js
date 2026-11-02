@@ -13,12 +13,17 @@ class MediaManager {
   }
 
   _initStorage() {
-    const dir = path.dirname(this.metadataFile);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(this.cacheDir)) fs.mkdirSync(this.cacheDir, { recursive: true });
+    try {
+      const dir = path.dirname(this.metadataFile);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    } catch (_) {}
 
-    if (fs.existsSync(this.metadataFile)) {
-      try {
+    try {
+      if (!fs.existsSync(this.cacheDir)) fs.mkdirSync(this.cacheDir, { recursive: true });
+    } catch (_) {}
+
+    try {
+      if (fs.existsSync(this.metadataFile)) {
         const raw = fs.readFileSync(this.metadataFile, 'utf8');
         const list = JSON.parse(raw);
         if (Array.isArray(list)) {
@@ -26,8 +31,8 @@ class MediaManager {
             this.mapping.set(item.fileId, item);
           }
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
   _saveMapping() {

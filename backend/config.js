@@ -65,7 +65,9 @@ const config = {
   },
 
   cache: {
-    dir: path.resolve(__dirname, '..', process.env.MEDIA_CACHE_DIR || './storage/cache'),
+    dir: process.env.VERCEL
+      ? path.join(require('os').tmpdir(), 'wadiq-cache')
+      : path.resolve(__dirname, '..', process.env.MEDIA_CACHE_DIR || './storage/cache'),
     maxSizeMb: parseInt(process.env.MEDIA_MAX_CACHE_SIZE_MB || '500', 10),
   }
 };
