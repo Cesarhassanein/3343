@@ -391,7 +391,7 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
       ),
       builder: (ctx) {
         final shareUrl = "https://3343-rosy.vercel.app/reel/${reel.id}";
-        final friends = PostService.instance.followedUsers.toList();
+        final friends = PostService.instance.followedUsernames.toList();
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -1274,8 +1274,10 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
       context,
       MaterialPageRoute(
         builder: (_) => UserProfileScreen(
-          username: reel.creatorUsername,
-          fullName: reel.creatorName,
+          name: reel.creatorName,
+          role: 'طالب',
+          avatarChar: reel.creatorName.isNotEmpty ? reel.creatorName[0] : 'و',
+          handle: '@${reel.creatorUsername}',
           avatarUrl: reel.creatorAvatarUrl,
         ),
       ),
@@ -1667,7 +1669,7 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black60,
+                        color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: WadiqColors.primaryAmber, width: 1),
                       ),
