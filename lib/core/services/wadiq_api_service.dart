@@ -17,7 +17,7 @@ class WadiqApiService {
 
   static const String defaultProductionBackendUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'https://editors-dramatically-tourism-epa.trycloudflare.com',
+    defaultValue: 'https://3343-rosy.vercel.app',
   );
 
   /// Base URL for the backend API.
