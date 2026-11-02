@@ -3,12 +3,25 @@ const apiRouter = require('../backend/routes/api_router');
 
 module.exports = async (req, res) => {
   try {
-    const parsed = url.parse(req.url, true);
-    const originalUrl = parsed.query._route ||
-                        req.headers['x-forwarded-url'] ||
-                        req.headers['x-matched-path'] ||
-                        req.url;
-    req.url = originalUrl;
+    // Determine the actual intended URL
+    let targetUrl = req.url || '/';
+
+    // If query string has _route from rewrite, use it
+    const parsed = url.parse(targetUrl, true);
+    if (parsed.query && parsed.query._route) {
+      targetUrl = parsed.query._route;
+    } else if (req.headers['x-matched-path'] && req.headers['x-matched-path'].startsWith('/api/')) {
+      targetUrl = req.headers['x-matched-path'];
+    } else if (req.headers['x-forwarded-url']) {
+      targetUrl = req.headers['x-forwarded-url'];
+    }
+
+    // If still pointing to index.js or [...all].js, strip it to /api/health or requested path
+    if (targetUrl === '/api/index.js' || targetUrl === '/api/[...all].js' || targetUrl === '/api' || targetUrl === '/api/') {
+      targetUrl = '/api/health';
+    }
+
+    req.url = targetUrl;
 
     const pathname = (url.parse(req.url).pathname || '/').toLowerCase();
     if (pathname === '/' || pathname === '') {
