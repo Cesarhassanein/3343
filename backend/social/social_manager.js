@@ -2,13 +2,13 @@ const supabaseAdmin = require('../database/supabase_admin');
 
 class SocialManager {
   // --- COMMENTS ---
-  async getComments(postId) {
-    if (!postId) return [];
+  async getComments(targetId) {
+    if (!targetId) return [];
     if (supabaseAdmin.isConfigured) {
       try {
         const rows = await supabaseAdmin.select(
           'comments',
-          `post_id=eq.${postId}&order=created_at.asc&select=*`
+          `or=(post_id.eq.${targetId},reel_id.eq.${targetId})&order=created_at.asc&select=*`
         );
         return rows.map(r => ({
           id: r.id,
@@ -18,7 +18,9 @@ class SocialManager {
           username: r.author_username || 'user',
           avatarUrl: r.author_avatar,
           text: r.content,
-          replyTo: null,
+          replyTo: r.reply_to || null,
+          likesCount: r.likes_count || 0,
+          dislikesCount: r.dislikes_count || 0,
           time: 'مؤخراً',
           createdAt: r.created_at,
         }));
@@ -29,7 +31,7 @@ class SocialManager {
     return [];
   }
 
-  async addComment(postId, commentData) {
+  async addComment(targetId, commentData) {
     const content = (commentData.text || commentData.content || '').trim();
     if (!content) throw new Error('محتوى التعليق لا يمكن أن يكون فارغاً.');
 
@@ -37,11 +39,22 @@ class SocialManager {
     const authorUsername = (commentData.username || 'user').replaceAll('@', '').toLowerCase();
     const authorAvatar = commentData.avatarUrl || commentData.author_avatar || '';
     const userId = commentData.userId || null;
+    const isReel = commentData.isReel === true || commentData.targetType === 'reel';
+
+    let isReelTarget = isReel;
+    if (!isReel && supabaseAdmin.isConfigured) {
+      try {
+        const reelCheck = await supabaseAdmin.select('reels', `id=eq.${targetId}&select=id`);
+        if (reelCheck && reelCheck.length > 0) {
+          isReelTarget = true;
+        }
+      } catch (_) {}
+    }
 
     if (supabaseAdmin.isConfigured) {
       const inserted = await supabaseAdmin.insert('comments', {
-        post_id: postId,
-        reel_id: null,
+        post_id: isReelTarget ? null : targetId,
+        reel_id: isReelTarget ? targetId : null,
         user_id: userId,
         author_name: authorName,
         author_username: authorUsername,
@@ -52,7 +65,8 @@ class SocialManager {
       const row = inserted && inserted.length > 0 ? inserted[0] : null;
       return {
         id: row ? row.id : `comment_${Date.now()}`,
-        postId: postId,
+        postId: isReelTarget ? null : targetId,
+        reelId: isReelTarget ? targetId : null,
         author: authorName,
         username: authorUsername,
         avatarUrl: authorAvatar,
@@ -63,6 +77,14 @@ class SocialManager {
     }
 
     return {
+      id: `comment_${Date.now()}`,
+      author: authorName,
+      username: authorUsername,
+      text: content,
+      time: 'الآن',
+      createdAt: new Date().toISOString(),
+    };
+  }
       id: `comment_${Date.now()}`,
       author: authorName,
       username: authorUsername,

@@ -19,13 +19,6 @@ class MainShellScreen extends StatefulWidget {
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentTabIndex = 0;
 
-  final List<Widget> _screens = const [
-    FeedScreen(),
-    ReelsScreen(),
-    ChatListScreen(),
-    MoreScreen(),
-  ];
-
   void _onTabSelected(int index) {
     setState(() {
       _currentTabIndex = index;
@@ -67,7 +60,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _currentTabIndex,
-        children: _screens,
+        children: [
+          const FeedScreen(),
+          ReelsScreen(isActive: _currentTabIndex == 1),
+          const ChatListScreen(),
+          const MoreScreen(),
+        ],
       ),
       bottomNavigationBar: WadiqBottomNavBar(
         currentIndex: _currentTabIndex,

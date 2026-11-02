@@ -6,11 +6,19 @@ import '../../../../core/services/wadiq_api_service.dart';
 class ReelVideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
   final bool isPlaying;
+  final bool isActive;
+  final double playbackSpeed;
+  final bool isLandscape;
+  final ValueChanged<VideoPlayerController>? onControllerReady;
 
   const ReelVideoPlayerWidget({
     super.key,
     required this.videoUrl,
     this.isPlaying = true,
+    this.isActive = true,
+    this.playbackSpeed = 1.0,
+    this.isLandscape = false,
+    this.onControllerReady,
   });
 
   @override
@@ -41,10 +49,27 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
     if (oldWidget.videoUrl != widget.videoUrl) {
       _initPlayer();
     } else if (_controller != null && _isInitialized) {
-      if (widget.isPlaying && !_controller!.value.isPlaying) {
-        _controller!.play();
-      } else if (!widget.isPlaying && _controller!.value.isPlaying) {
+      // 1. Check active state (if offscreen/inactive, stop playing and mute)
+      if (!widget.isActive && _controller!.value.isPlaying) {
         _controller!.pause();
+        _controller!.setVolume(0.0);
+      } else if (widget.isActive && !oldWidget.isActive) {
+        _controller!.setVolume(1.0);
+        if (widget.isPlaying) {
+          _controller!.play();
+        }
+      } else {
+        // 2. Play/Pause toggle
+        if (widget.isPlaying && !_controller!.value.isPlaying && widget.isActive) {
+          _controller!.play();
+        } else if (!widget.isPlaying && _controller!.value.isPlaying) {
+          _controller!.pause();
+        }
+      }
+
+      // 3. Playback speed update
+      if (oldWidget.playbackSpeed != widget.playbackSpeed) {
+        _controller!.setPlaybackSpeed(widget.playbackSpeed);
       }
     }
   }
@@ -52,11 +77,9 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
   String _resolvePlayableUrl(String url) {
     final clean = url.trim();
     if (clean.isEmpty) return '';
-    // Relative API path from our backend proxy
     if (clean.startsWith('/api/')) {
       return WadiqApiService.instance.getMediaUrl(clean);
     }
-    // Raw Telegram file ID
     if (!clean.startsWith('http') && !clean.startsWith('blob:') && !clean.contains('/')) {
       return WadiqApiService.instance.getMediaUrl(clean);
     }
@@ -82,15 +105,20 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
 
       await controller.initialize();
       await controller.setLooping(true);
-      // Sound is enabled at full volume; volume control is handled by phone's hardware buttons
-      await controller.setVolume(1.0);
+      await controller.setVolume(widget.isActive ? 1.0 : 0.0);
+      if (widget.playbackSpeed != 1.0) {
+        await controller.setPlaybackSpeed(widget.playbackSpeed);
+      }
 
       if (mounted) {
         setState(() {
           _isInitialized = true;
           _hasError = false;
         });
-        if (widget.isPlaying) {
+
+        widget.onControllerReady?.call(controller);
+
+        if (widget.isPlaying && widget.isActive) {
           try {
             await controller.play();
           } catch (e) {
@@ -116,13 +144,17 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
       _controller = controller;
       await controller.initialize();
       await controller.setLooping(true);
-      await controller.setVolume(1.0);
+      await controller.setVolume(widget.isActive ? 1.0 : 0.0);
+      if (widget.playbackSpeed != 1.0) {
+        await controller.setPlaybackSpeed(widget.playbackSpeed);
+      }
       if (mounted) {
         setState(() {
           _isInitialized = true;
           _hasError = false;
         });
-        if (widget.isPlaying) {
+        widget.onControllerReady?.call(controller);
+        if (widget.isPlaying && widget.isActive) {
           try {
             await controller.play();
           } catch (_) {}
@@ -180,38 +212,48 @@ class _ReelVideoPlayerWidgetState extends State<ReelVideoPlayerWidget> {
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        if (_controller == null || !_isInitialized) return;
-        if (_controller!.value.isPlaying) {
-          _controller!.pause();
-        } else {
-          _controller!.play();
-        }
-        setState(() {});
-      },
-      child: Container(
-        color: Colors.black,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
+    final size = _controller!.value.size;
+    final isWide = _controller!.value.aspectRatio > 1.2;
+
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        alignment: Alignment.center,
+        children: [
+          // If video is landscape and not in landscape mode, center it nicely
+          // Otherwise, fill the full vertical screen TikTok style (BoxFit.cover)
+          if (isWide && !widget.isLandscape)
             Center(
               child: AspectRatio(
-                aspectRatio: _controller!.value.aspectRatio > 0 ? _controller!.value.aspectRatio : 9 / 16,
+                aspectRatio: _controller!.value.aspectRatio,
                 child: VideoPlayer(_controller!),
               ),
+            )
+          else
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: size.width > 0 ? size.width : 1080,
+                  height: size.height > 0 ? size.height : 1920,
+                  child: VideoPlayer(_controller!),
+                ),
+              ),
             ),
-            if (!_controller!.value.isPlaying && _isInitialized)
-              Container(
-                padding: const EdgeInsets.all(12),
+
+          if (!_controller!.value.isPlaying && _isInitialized)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
                   color: Colors.black54,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 56),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
