@@ -85,14 +85,6 @@ class SocialManager {
       createdAt: new Date().toISOString(),
     };
   }
-      id: `comment_${Date.now()}`,
-      author: authorName,
-      username: authorUsername,
-      text: content,
-      time: 'الآن',
-      createdAt: new Date().toISOString(),
-    };
-  }
 
   // --- NOTIFICATIONS ---
   async getNotifications(usernameOrId) {
