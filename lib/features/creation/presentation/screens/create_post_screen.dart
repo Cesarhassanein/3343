@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/wadiq_colors.dart';
@@ -24,6 +25,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final List<TextEditingController> _pollOptionControllers = [];
   final ImagePicker _picker = ImagePicker();
 
+  Uint8List? _selectedImageBytes;
   String? _selectedImageBase64;
   bool _isPollEnabled = false;
   bool _isPublishing = false;
@@ -51,7 +53,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       XFile? img;
       try {
-        img = await _picker.pickImage(source: ImageSource.gallery);
+        img = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          imageQuality: 82,
+        );
       } catch (_) {
         img = await _picker.pickMedia();
       }
@@ -59,6 +66,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         final bytes = await img.readAsBytes();
         final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         setState(() {
+          _selectedImageBytes = bytes;
           _selectedImageBase64 = dataUrl;
           _imageUrlController.text = dataUrl;
         });
@@ -95,8 +103,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     List<String> mediaUrls = [];
 
-    // Upload image via backend API → Telegram
-    if (_selectedImageBase64 != null && _selectedImageBase64!.isNotEmpty) {
+    // Upload image via backend API → Telegram (Direct binary stream with compression)
+    if (_selectedImageBytes != null) {
+      final user = AuthService.instance.currentUser;
+      final uploadedUrl = await WadiqApiService.instance.uploadImageBytes(
+        _selectedImageBytes!,
+        fileName: 'post_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ownerUsername: user.username,
+      );
+      if (uploadedUrl != null) {
+        mediaUrls.add(uploadedUrl);
+      } else if (_selectedImageBase64 != null) {
+        mediaUrls.add(_selectedImageBase64!);
+      }
+    } else if (_selectedImageBase64 != null && _selectedImageBase64!.isNotEmpty) {
       final user = AuthService.instance.currentUser;
       final uploadedUrl = await WadiqApiService.instance.uploadBase64Image(
         _selectedImageBase64!,
@@ -106,7 +126,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (uploadedUrl != null) {
         mediaUrls.add(uploadedUrl);
       } else {
-        // Fallback: store Base64 directly if API upload fails
         mediaUrls.add(_selectedImageBase64!);
       }
     } else if (_imageUrlController.text.trim().isNotEmpty) {

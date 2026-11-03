@@ -1,4 +1,5 @@
 const url = require('url');
+const path = require('path');
 const mediaManager = require('../media/media_manager');
 const agoraService = require('../agora/agora_service');
 const telegramService = require('../telegram/telegram_service');
@@ -35,6 +36,32 @@ function readJsonBody(req) {
         reject(new Error('Invalid JSON'));
       }
     });
+    req.on('error', reject);
+  });
+}
+
+// Helper to read raw binary stream directly into Buffer (bypasses Base64 and JSON parsing)
+function readBinaryBody(req, maxSizeBytes = 50 * 1024 * 1024) {
+  if (Buffer.isBuffer(req.body)) return Promise.resolve(req.body);
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let receivedBytes = 0;
+
+    req.on('data', chunk => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxSizeBytes) {
+        req.destroy();
+        reject(new Error(`حجم الملف يتجاوز الحد المسموح به (${Math.round(maxSizeBytes / (1024 * 1024))}MB)`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+
+    req.on('end', () => {
+      resolve(Buffer.concat(chunks));
+    });
+
     req.on('error', reject);
   });
 }
@@ -103,11 +130,11 @@ class ApiRouter {
       if (pathname === '/api/app/version' && method === 'GET') {
         sendJson(res, 200, {
           ok: true,
-          latestVersion: '1.0.2',
-          versionCode: 2,
+          latestVersion: '1.0.3',
+          versionCode: 3,
           downloadUrl: 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
           directApkUrl: 'https://3343-rosy.vercel.app/api/app/download',
-          releaseNotes: 'تحديث ودق رقم 3: تحسين قسم المنشورات، التفاعلات، التعليقات وتحديثات السرعة والأداء 🚀',
+          releaseNotes: 'تحديث ودق رقم 3: تحسين قسم المنشورات، التفاعلات، التعليقات والسرعة العالية للرفع والتحميل 🚀',
           isForced: false,
           minVersionCode: 1,
         });
@@ -124,7 +151,7 @@ class ApiRouter {
         return true;
       }
 
-      // 2. Media Upload: POST /api/media/upload
+      // 2. Media Upload: POST /api/media/upload (Base64 JSON legacy compatibility)
       if (pathname === '/api/media/upload' && method === 'POST') {
         const body = await readJsonBody(req);
         if (!body.data) {
@@ -148,6 +175,56 @@ class ApiRouter {
           ok: true,
           ...result,
         });
+        return true;
+      }
+
+      // 2b. High-Performance Direct Binary Upload: POST /api/media/upload-binary
+      if (pathname === '/api/media/upload-binary' && method === 'POST') {
+        const rawFileName = req.headers['x-file-name'] || 'file.bin';
+        const sanitizedFileName = path.basename(decodeURIComponent(rawFileName)).replace(/[^a-zA-Z0-9._-]/g, '_');
+        const ext = path.extname(sanitizedFileName).toLowerCase();
+
+        // Security check: Block dangerous executable extensions
+        const blockedExtensions = ['.exe', '.sh', '.bat', '.cmd', '.msi', '.php', '.pl', '.py', '.js', '.vbs', '.apk', '.jar', '.dll'];
+        if (blockedExtensions.includes(ext)) {
+          sendJson(res, 400, { ok: false, error: 'نوع الملف غير مسموح به لأسباب أمنية.' });
+          return true;
+        }
+
+        const category = (req.headers['x-category'] || 'image').toLowerCase();
+        let mimeType = req.headers['x-mime-type'] || req.headers['content-type'] || 'application/octet-stream';
+        if (mimeType.includes(';')) mimeType = mimeType.split(';')[0].trim();
+
+        const allowedCategories = ['image', 'avatar', 'reel', 'video', 'voice', 'audio', 'document'];
+        if (!allowedCategories.includes(category)) {
+          sendJson(res, 400, { ok: false, error: 'فئة الوسائط غير صالحة.' });
+          return true;
+        }
+
+        const auth = getAuthUser(req);
+        const owner = auth ? auth.username : (req.headers['x-owner-username'] || 'anon');
+
+        try {
+          const buffer = await readBinaryBody(req, 50 * 1024 * 1024);
+          if (!buffer || buffer.length === 0) {
+            sendJson(res, 400, { ok: false, error: 'الملف المرسل فارغ.' });
+            return true;
+          }
+
+          const result = await mediaManager.uploadMedia(
+            buffer,
+            sanitizedFileName,
+            category,
+            { ownerUsername: owner }
+          );
+
+          sendJson(res, 200, {
+            ok: true,
+            ...result,
+          });
+        } catch (err) {
+          sendJson(res, 400, { ok: false, error: err.message });
+        }
         return true;
       }
 
@@ -320,6 +397,29 @@ class ApiRouter {
         try {
           await authManager.changePassword(auth.sub, body.currentPassword, body.newPassword);
           sendJson(res, 200, { ok: true, message: 'تم تحديث كلمة المرور وإلغاء الجلسات الأخرى بنجاح.' });
+        } catch (err) {
+          sendJson(res, 400, { ok: false, error: err.message });
+        }
+        return true;
+      }
+
+      // 13b. Auth: POST /api/auth/avatar (Update User Profile Picture Asynchronously)
+      if (pathname === '/api/auth/avatar' && method === 'POST') {
+        const auth = getAuthUser(req);
+        if (!auth) {
+          sendJson(res, 401, { ok: false, error: 'غير مصرح.' });
+          return true;
+        }
+
+        const body = await readJsonBody(req);
+        if (!body.avatarUrl) {
+          sendJson(res, 400, { ok: false, error: 'رابط الصورة مطلوب.' });
+          return true;
+        }
+
+        try {
+          const result = await authManager.updateAvatar(auth.sub, body.avatarUrl);
+          sendJson(res, 200, { ok: true, ...result });
         } catch (err) {
           sendJson(res, 400, { ok: false, error: err.message });
         }

@@ -117,6 +117,59 @@ class WadiqApiService {
     return null;
   }
 
+  /// High-performance direct binary stream upload (Bypasses Base64 overhead)
+  /// Sends raw bytes as binary stream to /api/media/upload-binary
+  Future<MediaUploadResult?> uploadBinary(
+    Uint8List bytes, {
+    String fileName = 'file.bin',
+    String category = 'image',
+    String? mimeType,
+    String? ownerUsername,
+    void Function(double progress)? onProgress,
+  }) async {
+    try {
+      final detectedMime = mimeType ?? _mimeFromFileName(fileName);
+      final token = await getAccessToken();
+
+      final uri = Uri.parse(_url('/api/media/upload-binary'));
+      final request = http.Request('POST', uri);
+
+      request.headers['Content-Type'] = detectedMime;
+      request.headers['x-file-name'] = Uri.encodeComponent(fileName);
+      request.headers['x-category'] = category;
+      request.headers['x-mime-type'] = detectedMime;
+      if (ownerUsername != null && ownerUsername.isNotEmpty) {
+        request.headers['x-owner-username'] = ownerUsername;
+      }
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      request.bodyBytes = bytes;
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 120));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['ok'] == true && json['fileId'] != null) {
+          return MediaUploadResult(
+            fileId: json['fileId'] as String,
+            url: json['url'] as String? ?? '/api/media/${json['fileId']}',
+            storageProvider: json['storageProvider'] as String? ?? 'unknown',
+            mimeType: json['mimeType'] as String? ?? detectedMime,
+            sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? bytes.length,
+          );
+        }
+      }
+
+      debugPrint('[WadiqAPI] Binary upload failed: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      debugPrint('[WadiqAPI] Binary upload error: $e');
+    }
+    return null;
+  }
+
   /// Upload media (image/video/audio) to backend → Telegram
   /// [data] can be:
   ///   - Base64 data URL string (data:image/jpeg;base64,...)
@@ -175,11 +228,21 @@ class WadiqApiService {
   }
 
   /// Upload image bytes and return the display URL
-  /// Convenience method for common image upload pattern.
+  /// Uses direct binary upload with legacy fallback
   Future<String?> uploadImageBytes(Uint8List bytes, {
     String fileName = 'image.jpg',
     String ownerUsername = 'anon',
   }) async {
+    // 1. Try high-performance direct binary stream upload
+    final binaryRes = await uploadBinary(
+      bytes,
+      fileName: fileName,
+      category: 'image',
+      ownerUsername: ownerUsername,
+    );
+    if (binaryRes != null) return binaryRes.url;
+
+    // 2. Fallback to legacy Base64 JSON
     final result = await uploadMedia(
       data: bytes,
       fileName: fileName,
@@ -197,23 +260,42 @@ class WadiqApiService {
     String fileName = 'image.jpg',
     String ownerUsername = 'anon',
   }) async {
-    final result = await uploadMedia(
-      data: dataUrl,
-      fileName: fileName,
-      category: 'image',
-      ownerUsername: ownerUsername,
-    );
-    if (result != null) {
-      return result.url;
+    try {
+      final comma = dataUrl.indexOf(',');
+      final b64 = comma != -1 ? dataUrl.substring(comma + 1) : dataUrl;
+      final bytes = base64Decode(b64);
+      return uploadImageBytes(bytes, fileName: fileName, ownerUsername: ownerUsername);
+    } catch (_) {
+      final result = await uploadMedia(
+        data: dataUrl,
+        fileName: fileName,
+        category: 'image',
+        ownerUsername: ownerUsername,
+      );
+      if (result != null) {
+        return result.url;
+      }
+      return null;
     }
-    return null;
   }
 
   /// Upload video and return the relative API path (/api/media/fileId)
+  /// Uses direct binary stream upload with progress support
   Future<String?> uploadVideoBytes(Uint8List bytes, {
     String fileName = 'video.mp4',
     String ownerUsername = 'anon',
+    void Function(double progress)? onProgress,
   }) async {
+    final binaryRes = await uploadBinary(
+      bytes,
+      fileName: fileName,
+      category: 'reel',
+      mimeType: 'video/mp4',
+      ownerUsername: ownerUsername,
+      onProgress: onProgress,
+    );
+    if (binaryRes != null) return binaryRes.url;
+
     final result = await uploadMedia(
       data: bytes,
       fileName: fileName,
@@ -224,6 +306,26 @@ class WadiqApiService {
       return result.url;
     }
     return null;
+  }
+
+  /// Asynchronously update user profile avatar on backend
+  Future<bool> updateUserAvatar(String avatarUrl) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.post(
+        Uri.parse(_url('/api/auth/avatar')),
+        headers: headers,
+        body: jsonEncode({'avatarUrl': avatarUrl}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final json = jsonDecode(res.body);
+        return json['ok'] == true;
+      }
+    } catch (e) {
+      debugPrint('[WadiqAPI] Update avatar error: $e');
+    }
+    return false;
   }
 
   /// Initiate a call session via Agora

@@ -1,13 +1,15 @@
 /**
- * Rate-limited Priority Queue for Telegram API & Storage Operations
- * Protects against Telegram FloodWait and Too Many Requests (429)
+ * Optimized Priority Queue for Telegram API & Storage Operations
+ * Supports concurrent workers (pool) to prevent large uploads from blocking API calls,
+ * with adaptive FloodWait backoff (429) protection.
  */
 class TaskQueue {
-  constructor(opsPerSecond = 25) {
+  constructor(opsPerSecond = 25, maxConcurrent = 3) {
     this.opsPerSecond = Math.max(1, opsPerSecond);
     this.intervalMs = Math.floor(1000 / this.opsPerSecond);
+    this.maxConcurrent = Math.max(1, maxConcurrent);
+    this.activeWorkers = 0;
     this.queue = [];
-    this.isProcessing = false;
     this.floodWaitUntil = 0;
     this.metrics = {
       processedCount: 0,
@@ -19,7 +21,7 @@ class TaskQueue {
   /**
    * Enqueue a promise-returning task
    * @param {Function} taskFn - () => Promise<any>
-   * @param {number} priority - Higher number = higher priority (e.g. 10 for chat, 1 for batch)
+   * @param {number} priority - Higher number = higher priority (e.g. 10 for chat, 8 for upload, 1 for background)
    * @returns {Promise<any>}
    */
   enqueue(taskFn, priority = 5) {
@@ -36,28 +38,25 @@ class TaskQueue {
       this.queue.sort((a, b) => b.priority - a.priority || a.enqueuedAt - b.enqueuedAt);
       this.metrics.activeQueueLength = this.queue.length;
 
-      if (!this.isProcessing) {
-        this._processNext();
-      }
+      this._drain();
     });
   }
 
-  async _processNext() {
-    if (this.queue.length === 0) {
-      this.isProcessing = false;
-      this.metrics.activeQueueLength = 0;
-      return;
+  _drain() {
+    while (this.activeWorkers < this.maxConcurrent && this.queue.length > 0) {
+      const now = Date.now();
+      if (this.floodWaitUntil > now) {
+        const waitRemaining = this.floodWaitUntil - now;
+        setTimeout(() => this._drain(), Math.min(waitRemaining, 5000));
+        break;
+      }
+      this._runWorker();
     }
+  }
 
-    this.isProcessing = true;
-
-    // Check if we are currently in a FloodWait backoff
-    const now = Date.now();
-    if (this.floodWaitUntil > now) {
-      const waitRemaining = this.floodWaitUntil - now;
-      setTimeout(() => this._processNext(), waitRemaining);
-      return;
-    }
+  async _runWorker() {
+    if (this.queue.length === 0) return;
+    this.activeWorkers++;
 
     const item = this.queue.shift();
     this.metrics.activeQueueLength = this.queue.length;
@@ -78,14 +77,17 @@ class TaskQueue {
       } else {
         item.reject(err);
       }
+    } finally {
+      this.activeWorkers--;
+      setTimeout(() => this._drain(), this.intervalMs);
     }
-
-    setTimeout(() => this._processNext(), this.intervalMs);
   }
 
   getStats() {
     return {
       opsPerSecond: this.opsPerSecond,
+      maxConcurrent: this.maxConcurrent,
+      activeWorkers: this.activeWorkers,
       queueLength: this.queue.length,
       isFloodWaiting: Date.now() < this.floodWaitUntil,
       floodWaitRemainingMs: Math.max(0, this.floodWaitUntil - Date.now()),

@@ -7,8 +7,8 @@ class UpdateService {
   UpdateService._();
   static final UpdateService instance = UpdateService._();
 
-  static const int currentVersionCode = 1;
-  static const String currentVersionName = "1.0.1";
+  static const int currentVersionCode = 3;
+  static const String currentVersionName = "1.0.3";
 
   bool _isChecking = false;
 

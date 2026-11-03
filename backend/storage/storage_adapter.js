@@ -144,7 +144,7 @@ class TelegramStorageAdapter extends BaseStorageAdapter {
             'Content-Length': res.headers['content-length'],
             'Content-Range': res.headers['content-range'],
             'Accept-Ranges': 'bytes',
-            'Cache-Control': 'public, max-age=86400',
+            'Cache-Control': 'public, max-age=604800, immutable',
           },
         });
       });

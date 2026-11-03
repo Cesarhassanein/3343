@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/wadiq_colors.dart';
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
 
+  Uint8List? _avatarBytes;
   String? _avatarBase64;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -48,13 +50,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       XFile? img;
       try {
-        img = await _picker.pickImage(source: ImageSource.gallery);
+        img = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 80,
+        );
       } catch (_) {
         img = await _picker.pickMedia();
       }
       if (img != null) {
         final bytes = await img.readAsBytes();
         setState(() {
+          _avatarBytes = bytes;
           _avatarBase64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         });
         if (mounted) Navigator.pop(context);
@@ -124,6 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return GestureDetector(
                     onTap: () {
                       setState(() {
+                        _avatarBytes = null;
                         _avatarBase64 = url;
                       });
                       Navigator.pop(ctx);
@@ -225,31 +234,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload avatar via backend API → Telegram (if it's a Base64 data URL)
-      String? finalAvatarUrl = _avatarBase64;
-      if (_avatarBase64 != null && _avatarBase64!.startsWith('data:image')) {
-        final uploadedUrl = await WadiqApiService.instance.uploadBase64Image(
-          _avatarBase64!,
-          fileName: 'avatar_${username}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          ownerUsername: username,
-        );
-        if (uploadedUrl != null) {
-          finalAvatarUrl = uploadedUrl;
-        }
-        // If upload fails, keep the Base64 as fallback
-      }
+      // 1. Initial optimistic avatar (preset URL or local preview data URL)
+      final initialAvatarUrl = _avatarBase64!;
+      final rawBytesToUpload = _avatarBytes;
+      final targetUsername = username;
 
+      // 2. Register account immediately (takes ~1.5s instead of 20s)
       final success = await AuthService.instance.register(
         fullName: fullName,
         username: username,
         email: email,
         password: password,
         role: 'طالب',
-        avatarUrl: finalAvatarUrl,
+        avatarUrl: initialAvatarUrl,
       );
 
       if (!mounted) return;
       if (!success) throw StateError('تعذر إنشاء الحساب.');
+
+      // 3. Asynchronously upload compressed avatar in background without blocking UI
+      if (rawBytesToUpload != null) {
+        Future(() async {
+          try {
+            final uploadResult = await WadiqApiService.instance.uploadBinary(
+              rawBytesToUpload,
+              fileName: 'avatar_${targetUsername}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              category: 'avatar',
+              mimeType: 'image/jpeg',
+              ownerUsername: targetUsername,
+            );
+            if (uploadResult != null && uploadResult.url.isNotEmpty) {
+              await WadiqApiService.instance.updateUserAvatar(uploadResult.url);
+              await AuthService.instance.updateAvatar(uploadResult.url);
+            }
+          } catch (bgErr) {
+            debugPrint('[Register] Background avatar upload note: $bgErr');
+          }
+        });
+      }
 
       Navigator.pushAndRemoveUntil(
         context,

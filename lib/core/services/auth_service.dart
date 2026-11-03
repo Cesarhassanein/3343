@@ -209,13 +209,12 @@ class AuthService {
       throw StateError('كلمة المرور يجب أن تكون قوية (6 خانات على الأقل، وتحتوي على أحرف وأرقام).');
     }
 
-    // Check unique username
-    if (await isUsernameTaken(cleanUsername)) {
+    // Fast local accounts uniqueness check
+    final localAccounts = await _getStoredAccounts();
+    if (localAccounts.any((a) => (a['username']?.toString().toLowerCase() ?? '') == cleanUsername)) {
       throw StateError('اسم المستخدم @$cleanUsername مستخدم مسبقاً، يرجى اختيار اسم آخر.');
     }
-
-    // Check unique email
-    if (await isEmailTaken(cleanEmail)) {
+    if (localAccounts.any((a) => (a['email']?.toString().toLowerCase() ?? '') == cleanEmail)) {
       throw StateError('البريد الإلكتروني مستخدم مسبقاً في حساب آخر.');
     }
 
@@ -270,7 +269,7 @@ class AuthService {
       avatarUrl: avatarUrl,
     );
 
-    // 3. Save in permanent local store with credentials
+    // 3. Save in permanent local store (without plaintext password for security)
     final accounts = await _getStoredAccounts();
     accounts.removeWhere((a) => a['username'] == cleanUsername || a['email'] == cleanEmail);
     accounts.add({
@@ -281,7 +280,6 @@ class AuthService {
       'role': 'طالب',
       'avatar_url': avatarUrl,
       'bio': userBio,
-      'password': password.trim(),
     });
     await _saveStoredAccounts(accounts);
 
@@ -432,6 +430,33 @@ class AuthService {
             .eq('username', _currentUser!.username);
       } catch (_) {}
     }
+  }
+
+  Future<void> updateAvatar(String newAvatarUrl) async {
+    if (_currentUser == null) return;
+    _currentUser = UserModel(
+      id: _currentUser!.id,
+      username: _currentUser!.username,
+      fullName: _currentUser!.fullName,
+      role: _currentUser!.role,
+      bio: _currentUser!.bio,
+      avatarUrl: newAvatarUrl,
+      followersCount: _currentUser!.followersCount,
+      followingCount: _currentUser!.followingCount,
+      likesCount: _currentUser!.likesCount,
+      postsCount: _currentUser!.postsCount,
+    );
+    await _persistSession();
+
+    // Update locally stored account record
+    try {
+      final accounts = await _getStoredAccounts();
+      final idx = accounts.indexWhere((a) => a['id'] == _currentUser!.id || a['username'] == _currentUser!.username);
+      if (idx != -1) {
+        accounts[idx]['avatar_url'] = newAvatarUrl;
+        await _saveStoredAccounts(accounts);
+      }
+    } catch (_) {}
   }
 
   Future<void> logout() async {

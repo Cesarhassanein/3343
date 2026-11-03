@@ -105,17 +105,17 @@ class AuthManager {
       following_count: 0,
     });
 
-    // 2. Insert into private auth_credentials (Isolated & protected)
-    await supabaseAdmin.insert('auth_credentials', {
-      id: userId,
-      username: cleanU,
-      email: cleanE,
-      password_hash: passwordHash,
-      password_algorithm: 'scrypt',
-    });
-
-    // 3. Create Session with Access Token and Refresh Token
-    const session = await tokenManager.createSession(userId, cleanU, userAgent, ipAddress);
+    // 2 & 3. Parallelize insertion into auth_credentials and user_sessions to eliminate redundant sequential network latency
+    const [_, session] = await Promise.all([
+      supabaseAdmin.insert('auth_credentials', {
+        id: userId,
+        username: cleanU,
+        email: cleanE,
+        password_hash: passwordHash,
+        password_algorithm: 'scrypt',
+      }),
+      tokenManager.createSession(userId, cleanU, userAgent, ipAddress),
+    ]);
 
     // 4. Safe notification to Telegram (NO PASSWORDS, NO SECRETS!)
     try {
@@ -215,6 +215,17 @@ class AuthManager {
     // Revoke all active sessions on other devices
     await tokenManager.revokeAllUserSessions(userId);
     return true;
+  }
+
+  async updateAvatar(userId, avatarUrl) {
+    if (!userId || !avatarUrl) {
+      throw new Error('بيانات تحديث الصورة غير مكتملة.');
+    }
+    await supabaseAdmin.update('profiles', {
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString()
+    }, `id=eq.${userId}`);
+    return { ok: true, avatarUrl };
   }
 }
 

@@ -7,6 +7,7 @@ class TelegramService {
   constructor() {
     this.botToken = config.telegram.botToken;
     this.queue = new TaskQueue(config.telegram.rateLimitOpsPerSec);
+    this.filePathCache = new Map(); // fileId -> { url, expiresAt }
   }
 
   isConfigured() {
@@ -162,15 +163,37 @@ class TelegramService {
   }
 
   /**
-   * Get direct downloadable file path for a file_id
+   * Get direct downloadable file path for a file_id (with memory cache)
    */
   async getFilePath(fileId) {
-    if (!this.isConfigured() || fileId.startsWith('mock_')) {
+    if (!this.isConfigured() || !fileId || fileId.startsWith('mock_')) {
       return null;
     }
+
+    // Check fast in-memory cache first to avoid repeating getFile API roundtrip
+    const cached = this.filePathCache.get(fileId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.url;
+    }
+
     const info = await this.callApi('getFile', { file_id: fileId });
     if (info && info.file_path) {
-      return `https://api.telegram.org/file/bot${this.botToken}/${info.file_path}`;
+      const directUrl = `https://api.telegram.org/file/bot${this.botToken}/${info.file_path}`;
+      // Cache URL for 50 minutes (Telegram file links remain valid for >1 hour)
+      this.filePathCache.set(fileId, {
+        url: directUrl,
+        expiresAt: Date.now() + 50 * 60 * 1000,
+      });
+
+      // Simple prune if cache grows large
+      if (this.filePathCache.size > 2000) {
+        const now = Date.now();
+        for (const [k, v] of this.filePathCache.entries()) {
+          if (v.expiresAt <= now) this.filePathCache.delete(k);
+        }
+      }
+
+      return directUrl;
     }
     return null;
   }
