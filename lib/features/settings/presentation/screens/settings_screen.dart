@@ -5,6 +5,7 @@ import '../../../../core/services/auth_service.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 import 'chat_appearance_settings_screen.dart';
 import 'chat_folders_settings_screen.dart';
+import 'reels_main_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -315,6 +316,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ChatFoldersSettingsScreen()),
+                );
+              },
+            ),
+          ]),
+          const SizedBox(height: 20),
+
+          // Section: قسم الريلز
+          _buildSectionHeader("2_ قسم الريلز"),
+          _buildCardGroup([
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: WadiqColors.primaryAmber.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.video_library_outlined, color: WadiqColors.primaryAmber, size: 20),
+              ),
+              title: Text("إعدادات الريلز الشاملة", style: WadiqTypography.bodyLarge),
+              subtitle: Text("التفاعلات، أذونات الظهور، تفضيلات المحتوى، المحذوف مؤخراً ومركز الأنشطة", style: WadiqTypography.caption),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReelsMainSettingsScreen()),
                 );
               },
             ),
