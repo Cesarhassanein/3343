@@ -1,0 +1,85 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'نوع البناء (unsigned أو signed)'
+        required: true
+        default: 'unsigned'
+        type: choice
+        options:
+          - unsigned
+          - signed
+
+jobs:
+  build_ios:
+    name: Build iOS IPA
+    runs-on: macos-14
+
+    steps:
+      - name: 1. فحص الكود (Checkout Code)
+        uses: actions/checkout@v4
+
+      - name: 2. إعداد فلاتر (Set up Flutter)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: 3. تحميل حزم فلاتر (Get Dependencies)
+        run: flutter pub get
+
+      - name: 4. تثبيت حزم CocoaPods للـ iOS
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: 5. تثبيت شهادات أبل للتوقيع (إذا تم اختيار signed ووجدت الأسرار)
+        if: ${{ inputs.build_type == 'signed' && env.CERT_BASE64 != '' }}
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERT_PWD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PASSWORD || 'wadiq123' }}
+        run: |
+          # إنشاء Keychain مؤقت
+          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+
+          # فك تشفير وتثبيت شهادة P12
+          echo "$CERT_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$CERT_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" build.keychain
+
+          # تثبيت Provisioning Profile
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: 6. بناء ملف iOS (Build iOS Release)
+        run: |
+          if [ "${{ inputs.build_type }}" = "signed" ] && [ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]; then
+            echo "--- بناء IPA موقّع رسمياً ---"
+            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          else
+            echo "--- بناء IPA غير موقّع (جاهز للتثبيت عبر Sideloadly / TrollStore / AltStore) ---"
+            flutter build ios --release --no-codesign
+            mkdir -p build/ios/iphoneos/Payload
+            cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+            cd build/ios/iphoneos
+            zip -r -9 Wadiq.ipa Payload
+            cd ../../..
+          fi
+
+      - name: 7. رفع ملف الـ IPA إلى قسم التحميلات (Upload Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wadiq-iOS-Release
+          path: |
+            build/ios/iphoneos/Wadiq.ipa
+            build/ios/archive/Runner.xcarchive
+            build/ios/ipa/*.ipa
+          retention-days: 14
