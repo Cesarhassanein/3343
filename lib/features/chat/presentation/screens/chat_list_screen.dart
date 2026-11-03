@@ -3,6 +3,7 @@ import '../../../../core/theme/wadiq_colors.dart';
 import '../../../../core/theme/wadiq_typography.dart';
 import '../../../../core/services/chat_service.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/chat_settings_service.dart';
 import 'chat_room_screen.dart';
 import '../../../creation/presentation/screens/create_group_channel_screen.dart';
 
@@ -23,14 +24,38 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    ChatSettingsService.instance.addListener(_onSettingsChanged);
+    _initTabController();
     _searchController.addListener(_onSearchChanged);
     _loadConversations();
   }
 
+  void _initTabController([int initialIndex = 0]) {
+    final count = ChatSettingsService.instance.folders.length;
+    _tabController = TabController(
+      length: count > 0 ? count : 1,
+      vsync: this,
+      initialIndex: initialIndex.clamp(0, (count > 0 ? count : 1) - 1),
+    );
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _onSettingsChanged() {
+    final count = ChatSettingsService.instance.folders.length;
+    final targetLength = count > 0 ? count : 1;
+    if (_tabController.length != targetLength) {
+      final oldIndex = _tabController.index.clamp(0, targetLength - 1);
+      _tabController.dispose();
+      _initTabController(oldIndex);
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    ChatSettingsService.instance.removeListener(_onSettingsChanged);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -64,18 +89,28 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   }
 
   List<ConversationSummary> _getTabFilteredList() {
-    final tabIndex = _tabController.index;
-    if (tabIndex == 1) {
-      // Channels
+    final folders = ChatSettingsService.instance.folders;
+    if (folders.isEmpty) return _filteredConversations;
+
+    final currentIndex = _tabController.index.clamp(0, folders.length - 1);
+    final folder = folders[currentIndex];
+
+    if (folder.id == 'all') {
+      return _filteredConversations;
+    } else if (folder.id == 'academic') {
       return _filteredConversations.where((c) => c.isChannel).toList();
-    } else if (tabIndex == 2) {
-      // Groups
+    } else if (folder.id == 'groups') {
       return _filteredConversations.where((c) => c.isGroup).toList();
-    } else if (tabIndex == 3) {
-      // Direct
+    } else if (folder.id == 'direct') {
       return _filteredConversations.where((c) => !c.isChannel && !c.isGroup).toList();
     }
-    return _filteredConversations;
+
+    // Custom user folder filter
+    return _filteredConversations.where((c) {
+      return folder.includedChatIds.contains(c.id) ||
+          folder.includedChatIds.contains(c.username) ||
+          folder.includedChatIds.contains(c.name);
+    }).toList();
   }
 
   void _openDirectChatWithUser(String username, {String? displayName}) {
@@ -295,12 +330,9 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           labelStyle: WadiqTypography.titleMedium.copyWith(fontSize: 14),
-          tabs: const [
-            Tab(text: "الكل"),
-            Tab(text: "قنوات ودق"),
-            Tab(text: "المجموعات"),
-            Tab(text: "محادثات خاصة"),
-          ],
+          tabs: ChatSettingsService.instance.folders
+              .map((f) => Tab(text: f.name))
+              .toList(),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -531,22 +563,24 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.lastMessage,
-                          style: WadiqTypography.caption.copyWith(
-                            color: WadiqColors.textSecondary,
-                            fontSize: 13,
+                  if (ChatSettingsService.instance.listPreviewMode > 0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            chat.lastMessage,
+                            style: WadiqTypography.caption.copyWith(
+                              color: WadiqColors.textSecondary,
+                              fontSize: 13,
+                            ),
+                            maxLines: ChatSettingsService.instance.listPreviewMode,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

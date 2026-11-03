@@ -3,6 +3,8 @@ import '../../../../core/theme/wadiq_colors.dart';
 import '../../../../core/theme/wadiq_typography.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import 'chat_appearance_settings_screen.dart';
+import 'chat_folders_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -270,6 +272,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Section: قسم المراسلات
+          _buildSectionHeader("قسم المراسلات"),
+          _buildCardGroup([
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: WadiqColors.primaryAmber.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.chat_outlined, color: WadiqColors.primaryAmber, size: 20),
+              ),
+              title: Text("1_ المحادثات", style: WadiqTypography.bodyLarge),
+              subtitle: Text("حجم الخط، الخلفيات، الألوان، زاوية الرسالة، عرض القائمة", style: WadiqTypography.caption),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatAppearanceSettingsScreen()),
+                );
+              },
+            ),
+            const Divider(color: WadiqColors.divider, height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: WadiqColors.primaryAmber.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.folder_copy_outlined, color: WadiqColors.primaryAmber, size: 20),
+              ),
+              title: Text("2_ مجلدات المحادثات", style: WadiqTypography.bodyLarge),
+              subtitle: Text("إنشاء مجلدات مخصصة، تغيير الترتيب، تصنيف المحادثات", style: WadiqTypography.caption),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatFoldersSettingsScreen()),
+                );
+              },
+            ),
+          ]),
           const SizedBox(height: 20),
 
           // Section 2: Notifications & Chat

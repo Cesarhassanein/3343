@@ -4,6 +4,7 @@ import 'core/theme/wadiq_theme.dart';
 import 'core/services/supabase_config.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/wadiq_api_service.dart';
+import 'core/services/chat_settings_service.dart';
 import 'core/utils/picker_initializer.dart';
 import 'features/shell/presentation/screens/main_shell_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -14,6 +15,7 @@ void main() async {
   await WadiqApiService.instance.init();
   await SupabaseConfig.initialize();
   await AuthService.instance.initSession();
+  await ChatSettingsService.instance.init();
   runApp(const WadiqApp());
 }
 

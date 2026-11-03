@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/wadiq_colors.dart';
 import '../../../../core/theme/wadiq_typography.dart';
 import '../../../../core/services/chat_service.dart';
+import '../../../../core/services/chat_settings_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/wadiq_api_service.dart';
 import 'channel_info_screen.dart';
@@ -61,13 +62,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void initState() {
     super.initState();
+    ChatSettingsService.instance.addListener(_onSettingsChanged);
     _loadMessages();
     _subscribeToLiveMessages();
     _textController.addListener(() => setState(() {}));
   }
 
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    ChatSettingsService.instance.removeListener(_onSettingsChanged);
     ChatService.instance.unsubscribe();
     _textController.dispose();
     _scrollController.dispose();
@@ -307,6 +314,41 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final myUsername = AuthService.instance.currentUser.username;
     final conv = ChatService.instance.getConversationById(widget.conversationId);
     final bool canPost = conv == null || conv.canUserPost(myUsername);
+    final settings = ChatSettingsService.instance;
+    final wallpaper = settings.wallpaper;
+
+    Decoration backgroundDecoration;
+    if (wallpaper == null) {
+      backgroundDecoration = const BoxDecoration(color: WadiqColors.obsidianBlack);
+    } else if (wallpaper.startsWith('data:image')) {
+      try {
+        final comma = wallpaper.indexOf(',');
+        final base64Str = comma != -1 ? wallpaper.substring(comma + 1) : wallpaper;
+        final bytes = base64Decode(base64Str);
+        backgroundDecoration = BoxDecoration(
+          image: DecorationImage(
+            image: MemoryImage(bytes),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.35), BlendMode.darken),
+          ),
+        );
+      } catch (_) {
+        backgroundDecoration = const BoxDecoration(color: WadiqColors.obsidianBlack);
+      }
+    } else {
+      final preset = ChatSettingsService.presetWallpapers.firstWhere(
+        (p) => p['id'] == wallpaper,
+        orElse: () => ChatSettingsService.presetWallpapers[0],
+      );
+      final colors = preset['colors']!.split(',').map((c) => Color(int.parse(c.trim()))).toList();
+      backgroundDecoration = BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: colors,
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: WadiqColors.obsidianBlack,
@@ -427,47 +469,50 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: WadiqColors.primaryAmber))
-                : _messages.isEmpty
-                    ? Center(
-                        child: Text(
-                          widget.isChannel
-                              ? "هذه القناة جديدة. لم يتم نشر أي رسائل أو ملازم بعد."
-                              : "لا توجد رسائل سابقة. ابدأ المحادثة الآن!",
-                          style: WadiqTypography.caption.copyWith(color: Colors.white54),
+      body: Container(
+        decoration: backgroundDecoration,
+        child: Column(
+          children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: WadiqColors.primaryAmber))
+                  : _messages.isEmpty
+                      ? Center(
+                          child: Text(
+                            widget.isChannel
+                                ? "هذه القناة جديدة. لم يتم نشر أي رسائل أو ملازم بعد."
+                                : "لا توجد رسائل سابقة. ابدأ المحادثة الآن!",
+                            style: WadiqTypography.caption.copyWith(color: Colors.white54),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          itemCount: _filteredMessages.length,
+                          itemBuilder: (context, index) {
+                            final msg = _filteredMessages[index];
+                            return _buildMessageItem(msg);
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        itemCount: _filteredMessages.length,
-                        itemBuilder: (context, index) {
-                          final msg = _filteredMessages[index];
-                          return _buildMessageItem(msg);
-                        },
-                      ),
-          ),
+            ),
 
-          // Composer or Channel restriction banner
-          if (canPost)
-            _buildComposer()
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              color: WadiqColors.cardSurface,
-              child: Center(
-                child: Text(
-                  "القناة مخصصة للبث من قبل المالك فقط",
-                  style: WadiqTypography.caption.copyWith(color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
+            // Composer or Channel restriction banner
+            if (canPost)
+              _buildComposer()
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                color: WadiqColors.cardSurface,
+                child: Center(
+                  child: Text(
+                    "القناة مخصصة للبث من قبل المالك فقط",
+                    style: WadiqTypography.caption.copyWith(color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -479,6 +524,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildMessageItem(MessageModel msg) {
     final bool isMe = msg.isMe;
+    final settings = ChatSettingsService.instance;
+    final theme = settings.activeTheme;
+    final double radius = settings.bubbleRadius;
+    final double fontSize = settings.fontSize;
 
     return Align(
       alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
@@ -487,16 +536,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? WadiqColors.elevatedSurface : WadiqColors.cardSurface,
+          color: isMe ? theme.senderBubbleColor : theme.receiverBubbleColor,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 2 : 16),
-            bottomRight: Radius.circular(isMe ? 16 : 2),
+            topLeft: Radius.circular(radius),
+            topRight: Radius.circular(radius),
+            bottomLeft: Radius.circular(isMe ? 3 : radius),
+            bottomRight: Radius.circular(isMe ? radius : 3),
           ),
           border: Border.all(
-            color: isMe ? WadiqColors.primaryAmber.withValues(alpha: 0.3) : WadiqColors.surfaceBorder,
-            width: 0.8,
+            color: isMe ? theme.borderColor.withValues(alpha: 0.6) : WadiqColors.surfaceBorder,
+            width: isMe ? 1.0 : 0.8,
           ),
         ),
         child: Column(
@@ -507,7 +556,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   "@${msg.senderUsername}",
-                  style: const TextStyle(fontSize: 11, color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: (fontSize - 4).clamp(10.0, 13.0),
+                    color: theme.accentColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
 
@@ -555,7 +608,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
             Text(
               msg.content,
-              style: WadiqTypography.bodyMedium.copyWith(color: Colors.white, height: 1.4),
+              style: TextStyle(
+                fontSize: fontSize,
+                color: isMe ? theme.senderTextColor : theme.receiverTextColor,
+                height: 1.38,
+              ),
             ),
             const SizedBox(height: 4),
 
