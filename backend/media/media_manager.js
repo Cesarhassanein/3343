@@ -51,7 +51,25 @@ class MediaManager {
    */
   async uploadMedia(data, originalName = 'upload.jpg', category = 'image', metadata = {}) {
     let buffer;
-    let mimeType = 'image/jpeg';
+    const ext = path.extname(originalName).toLowerCase();
+
+    // 1. Determine mimeType from metadata, filename extension, or category
+    let mimeType = metadata.mimeType;
+    if (!mimeType) {
+      if (ext === '.mp4') mimeType = 'video/mp4';
+      else if (ext === '.webm') mimeType = 'video/webm';
+      else if (ext === '.mov') mimeType = 'video/quicktime';
+      else if (ext === '.mkv') mimeType = 'video/x-matroska';
+      else if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+      else if (ext === '.mp3') mimeType = 'audio/mpeg';
+      else if (ext === '.ogg') mimeType = 'audio/ogg';
+      else if (category === 'reel' || category === 'video') mimeType = 'video/mp4';
+      else if (category === 'voice' || category === 'audio') mimeType = 'audio/mpeg';
+      else mimeType = 'image/jpeg';
+    }
 
     if (Buffer.isBuffer(data)) {
       buffer = data;
@@ -71,6 +89,11 @@ class MediaManager {
       }
     } else {
       throw new Error('Unsupported data format');
+    }
+
+    // Always enforce video MIME type if category is reel or video
+    if ((category === 'reel' || category === 'video' || ext === '.mp4') && !mimeType.startsWith('video/')) {
+      mimeType = 'video/mp4';
     }
 
     const adapter = this.getAdapter();

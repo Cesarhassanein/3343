@@ -50,16 +50,38 @@ class TelegramStorageAdapter extends BaseStorageAdapter {
     }
   }
 
-  _getEndpoint(mimeType, category) {
-    if (mimeType.startsWith('image/')) return { endpoint: 'sendPhoto', field: 'photo' };
-    if (mimeType.startsWith('video/') || category === 'reel') return { endpoint: 'sendVideo', field: 'video' };
-    if (mimeType.startsWith('audio/') || category === 'voice') return { endpoint: 'sendVoice', field: 'voice' };
+  _getEndpoint(mimeType = '', category = '', filename = '') {
+    const fn = (filename || '').toLowerCase();
+    const mime = (mimeType || '').toLowerCase();
+    const cat = (category || '').toLowerCase();
+
+    // Priority 1: Video (Reel, Video, .mp4, .mov, .webm, .mkv)
+    if (cat === 'reel' || cat === 'video' || mime.startsWith('video/') || fn.endsWith('.mp4') || fn.endsWith('.mov') || fn.endsWith('.webm') || fn.endsWith('.mkv')) {
+      return { endpoint: 'sendVideo', field: 'video' };
+    }
+
+    // Priority 2: Audio (Voice, Audio, .mp3, .ogg, .m4a, .wav)
+    if (cat === 'voice' || cat === 'audio' || mime.startsWith('audio/') || fn.endsWith('.mp3') || fn.endsWith('.ogg') || fn.endsWith('.m4a') || fn.endsWith('.wav')) {
+      return { endpoint: 'sendVoice', field: 'voice' };
+    }
+
+    // Priority 3: Photo (Avatar, Image, .jpg, .png, etc.)
+    if (cat === 'avatar' || cat === 'image' || mime.startsWith('image/') || fn.endsWith('.jpg') || fn.endsWith('.jpeg') || fn.endsWith('.png') || fn.endsWith('.webp') || fn.endsWith('.gif')) {
+      return { endpoint: 'sendPhoto', field: 'photo' };
+    }
+
+    // Default: document
     return { endpoint: 'sendDocument', field: 'document' };
   }
 
   async uploadFile(buffer, filename, mimeType, category = 'image', metadata = {}) {
     const targetChannel = this._getTargetChannel(category);
-    let { endpoint, field } = this._getEndpoint(mimeType, category);
+    let { endpoint, field } = this._getEndpoint(mimeType, category, filename);
+
+    // Guarantee proper video MIME type when sending video
+    if (endpoint === 'sendVideo' && (!mimeType || !mimeType.startsWith('video/'))) {
+      mimeType = 'video/mp4';
+    }
 
     const caption = `Wadiq Storage | ${category} | User: ${metadata.ownerUsername || 'anon'}`;
 
@@ -75,9 +97,9 @@ class TelegramStorageAdapter extends BaseStorageAdapter {
         caption
       );
     } catch (err) {
-      // Fallback: if sendPhoto fails (IMAGE_PROCESS_FAILED), try sendDocument
-      if (endpoint === 'sendPhoto' && err.message && err.message.includes('IMAGE_PROCESS_FAILED')) {
-        console.warn('[TelegramStorage] sendPhoto failed, falling back to sendDocument');
+      // Fallback: if sendPhoto or sendVideo fails, try sendDocument
+      if ((endpoint === 'sendPhoto' || endpoint === 'sendVideo') && err.message) {
+        console.warn(`[TelegramStorage] ${endpoint} failed (${err.message}), falling back to sendDocument`);
         result = await telegramService.uploadBinary(
           'sendDocument',
           targetChannel,

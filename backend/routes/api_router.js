@@ -215,7 +215,7 @@ class ApiRouter {
             buffer,
             sanitizedFileName,
             category,
-            { ownerUsername: owner }
+            { ownerUsername: owner, mimeType }
           );
 
           sendJson(res, 200, {

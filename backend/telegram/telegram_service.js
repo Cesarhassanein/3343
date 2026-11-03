@@ -98,6 +98,11 @@ class TelegramService {
           postDataHeader += `Content-Disposition: form-data; name="caption"${crlf}${crlf}${caption}${crlf}`;
         }
 
+        if (endpoint === 'sendVideo') {
+          postDataHeader += `--${boundary}${crlf}`;
+          postDataHeader += `Content-Disposition: form-data; name="supports_streaming"${crlf}${crlf}true${crlf}`;
+        }
+
         postDataHeader += `--${boundary}${crlf}`;
         postDataHeader += `Content-Disposition: form-data; name="${fieldName}"; filename="${fileName}"${crlf}`;
         postDataHeader += `Content-Type: ${mimeType}${crlf}${crlf}`;
