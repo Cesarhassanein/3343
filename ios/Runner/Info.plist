@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Wadiq</string>
+	<string>ودق - Wadiq</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,31 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- iOS Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>يحتاج تطبيق ودق إلى الوصول للكاميرا لالتقاط الصور الشخصية وتصوير مقاطع الريلز.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يحتاج تطبيق ودق إلى الوصول لمكتبة الصور لاختيار وتعديل الصور ونشر الريلز.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>يحتاج تطبيق ودق إلى إذن حفظ الصور ومقاطع الفيديو في ألبوم الصور الخاص بك.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يحتاج تطبيق ودق إلى استخدام الميكروفون لتسجيل الصوت أثناء تصوير الريلز والمكالمات الصوتية.</string>
+
+	<!-- App Transport Security for Media & Streaming -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
+
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

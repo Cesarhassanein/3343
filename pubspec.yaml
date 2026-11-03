@@ -2,7 +2,7 @@ name: wadiq
 description: "Wadiq - منصة ودق الاجتماعية والتعليمية المتكاملة"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.4+4
 
 environment:
   sdk: ^3.11.5
