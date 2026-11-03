@@ -31,6 +31,14 @@ class UpdateService {
         final bool isForced = info['isForced'] == true;
 
         if (remoteCode > currentVersionCode) {
+          final bool hasApk = info['hasApk'] == true;
+          final bool hasValidUrl = downloadUrl.isNotEmpty && downloadUrl.startsWith('http');
+          
+          // إذا لم يتوفر ملف الـ APK بعد، لا يظهر إشعار التحديث للمستخدمين منعاً لخطأ التحميل
+          if (!hasApk && !hasValidUrl) {
+            return;
+          }
+
           _showUpdateDialog(
             context,
             latestVersion: latestVersion,

@@ -128,12 +128,35 @@ class ApiRouter {
 
       // 1b. In-App Auto Update: GET /api/app/version
       if (pathname === '/api/app/version' && method === 'GET') {
+        const fs = require('fs');
+        const path = require('path');
+        const candidateApkPaths = [
+          path.join(__dirname, '..', '..', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', 'build', 'web', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', '3343', 'downloads', 'app-release.apk'),
+        ];
+        const hasApk = candidateApkPaths.some(p => fs.existsSync(p));
+
+        const candidateIpaPaths = [
+          path.join(__dirname, '..', '..', 'downloads', 'Wadiq.ipa'),
+          path.join(__dirname, '..', '..', 'build', 'ios', 'iphoneos', 'Wadiq.ipa'),
+          path.join(__dirname, '..', '..', '3343', 'downloads', 'Wadiq.ipa'),
+        ];
+        const hasIpa = candidateIpaPaths.some(p => fs.existsSync(p));
+
+        const host = req.headers.host || '3343-rosy.vercel.app';
+        const protocol = req.headers['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https');
+        const baseUrl = `${protocol}://${host}`;
+
         sendJson(res, 200, {
           ok: true,
           latestVersion: '1.0.4',
           versionCode: 4,
-          downloadUrl: 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
-          directApkUrl: 'https://3343-rosy.vercel.app/api/app/download',
+          hasApk: hasApk,
+          hasIpa: hasIpa,
+          downloadUrl: hasApk ? `${baseUrl}/api/app/download` : '',
+          directApkUrl: hasApk ? `${baseUrl}/api/app/download` : '',
+          ipaUrl: hasIpa ? `${baseUrl}/api/app/download/ipa` : '',
           releaseNotes: 'تحديث ودق الكبير v1.0.4 🚀\n- إضافة قسم إعدادات الريلز الشامل مع أذونات الخصوصية والمحذوف مؤخراً\n- إضافة تخصيص المراسلات والخلفيات والمجلدات\n- إصلاح حفظ وعرض التعليقات فورياً\n- تسريع فائق لرفع الفيديوهات والصور',
           isForced: false,
           minVersionCode: 1,
@@ -141,13 +164,71 @@ class ApiRouter {
         return true;
       }
 
-      // 1c. Direct APK Download Redirect: GET /api/app/download
+      // 1c. Direct APK Download: GET /api/app/download
       if (pathname === '/api/app/download' && method === 'GET') {
-        res.writeHead(302, {
-          'Location': 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
-          'Access-Control-Allow-Origin': '*',
-        });
-        res.end();
+        const fs = require('fs');
+        const path = require('path');
+        const candidateApkPaths = [
+          path.join(__dirname, '..', '..', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', 'build', 'web', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', '3343', 'downloads', 'app-release.apk'),
+        ];
+        let foundPath = null;
+        for (const p of candidateApkPaths) {
+          if (fs.existsSync(p)) {
+            foundPath = p;
+            break;
+          }
+        }
+
+        if (foundPath) {
+          const stat = fs.statSync(foundPath);
+          res.writeHead(200, {
+            'Content-Type': 'application/vnd.android.package-archive',
+            'Content-Length': stat.size,
+            'Content-Disposition': 'attachment; filename="Wadiq-release.apk"',
+            'Access-Control-Allow-Origin': '*',
+          });
+          const stream = fs.createReadStream(foundPath);
+          stream.pipe(res);
+          return true;
+        }
+
+        sendJson(res, 404, { ok: false, error: 'ملف الـ APK غير جاهز للتحميل بعد، سيتم إتاحته قريباً.' });
+        return true;
+      }
+
+      // 1d. Direct IPA Download: GET /api/app/download/ipa
+      if (pathname === '/api/app/download/ipa' && method === 'GET') {
+        const fs = require('fs');
+        const path = require('path');
+        const candidateIpaPaths = [
+          path.join(__dirname, '..', '..', 'downloads', 'Wadiq.ipa'),
+          path.join(__dirname, '..', '..', 'build', 'ios', 'iphoneos', 'Wadiq.ipa'),
+          path.join(__dirname, '..', '..', '3343', 'downloads', 'Wadiq.ipa'),
+        ];
+        let foundPath = null;
+        for (const p of candidateIpaPaths) {
+          if (fs.existsSync(p)) {
+            foundPath = p;
+            break;
+          }
+        }
+
+        if (foundPath) {
+          const stat = fs.statSync(foundPath);
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': stat.size,
+            'Content-Disposition': 'attachment; filename="Wadiq.ipa"',
+            'Access-Control-Allow-Origin': '*',
+          });
+          const stream = fs.createReadStream(foundPath);
+          stream.pipe(res);
+          return true;
+        }
+
+        sendJson(res, 404, { ok: false, error: 'ملف الـ IPA غير جاهز للتحميل بعد، سيتم إتاحته قريباً.' });
         return true;
       }
 
