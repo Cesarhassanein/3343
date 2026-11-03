@@ -720,9 +720,25 @@ class PostService {
     // Save permanently in Backend comments store
     WadiqApiService.instance.addPostComment(post.id, commentData);
 
-    // Update Supabase comments count
+    // Direct Supabase insert fallback
     final client = SupabaseConfig.client;
     if (client != null) {
+      try {
+        final uuidRegex = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+        final userIdValid = uuidRegex.hasMatch(user.id);
+        final postIdValid = uuidRegex.hasMatch(post.id);
+        if (postIdValid) {
+          client.from('comments').insert({
+            'post_id': post.id,
+            'user_id': userIdValid ? user.id : null,
+            'author_name': user.fullName.isNotEmpty ? user.fullName : user.username,
+            'author_username': user.username,
+            'author_avatar': user.avatarUrl ?? '',
+            'content': text.trim(),
+          }).then((_) {}, onError: (_) {});
+        }
+      } catch (_) {}
+
       client
           .from('posts')
           .update({'comments_count': post.commentsCount})

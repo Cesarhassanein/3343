@@ -1,34 +1,65 @@
 const supabaseAdmin = require('../database/supabase_admin');
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function toValidUuid(val) {
+  if (typeof val === 'string' && UUID_REGEX.test(val.trim())) {
+    return val.trim();
+  }
+  return null;
+}
+
 class SocialManager {
+  constructor() {
+    this._memoryComments = new Map();
+    this._commentVotes = new Map();
+  }
+
   // --- COMMENTS ---
   async getComments(targetId) {
     if (!targetId) return [];
-    if (supabaseAdmin.isConfigured) {
+    const results = [];
+    const seenIds = new Set();
+    const targetUuid = toValidUuid(targetId);
+
+    if (supabaseAdmin.isConfigured && targetUuid) {
       try {
         const rows = await supabaseAdmin.select(
           'comments',
-          `or=(post_id.eq.${targetId},reel_id.eq.${targetId})&order=created_at.asc&select=*`
+          `or=(post_id.eq.${targetUuid},reel_id.eq.${targetUuid})&order=created_at.asc&select=*`
         );
-        return rows.map(r => ({
-          id: r.id,
-          postId: r.post_id,
-          reelId: r.reel_id,
-          author: r.author_name,
-          username: r.author_username || 'user',
-          avatarUrl: r.author_avatar,
-          text: r.content,
-          replyTo: r.reply_to || null,
-          likesCount: r.likes_count || 0,
-          dislikesCount: r.dislikes_count || 0,
-          time: 'مؤخراً',
-          createdAt: r.created_at,
-        }));
+        for (const r of rows) {
+          seenIds.add(r.id);
+          results.push({
+            id: r.id,
+            postId: r.post_id,
+            reelId: r.reel_id,
+            author: r.author_name,
+            username: r.author_username || 'user',
+            avatarUrl: r.author_avatar,
+            text: r.content,
+            replyTo: null,
+            likesCount: 0,
+            dislikesCount: 0,
+            time: 'مؤخراً',
+            createdAt: r.created_at,
+          });
+        }
       } catch (err) {
         console.error('[SocialManager] getComments error:', err.message);
       }
     }
-    return [];
+
+    if (this._memoryComments.has(targetId)) {
+      const memoryList = this._memoryComments.get(targetId);
+      for (const m of memoryList) {
+        if (!seenIds.has(m.id)) {
+          seenIds.add(m.id);
+          results.push(m);
+        }
+      }
+    }
+
+    return results;
   }
 
   async addComment(targetId, commentData) {
@@ -38,59 +69,62 @@ class SocialManager {
     const authorName = commentData.author || commentData.author_name || 'طالب ودق';
     const authorUsername = (commentData.username || 'user').replaceAll('@', '').toLowerCase();
     const authorAvatar = commentData.avatarUrl || commentData.author_avatar || '';
-    const userId = commentData.userId || null;
+    const userId = toValidUuid(commentData.userId);
+    const targetUuid = toValidUuid(targetId);
     const isReel = commentData.isReel === true || commentData.targetType === 'reel';
 
     let isReelTarget = isReel;
-    if (!isReel && supabaseAdmin.isConfigured) {
+    if (targetUuid && !isReel && supabaseAdmin.isConfigured) {
       try {
-        const reelCheck = await supabaseAdmin.select('reels', `id=eq.${targetId}&select=id`);
+        const reelCheck = await supabaseAdmin.select('reels', `id=eq.${targetUuid}&select=id`);
         if (reelCheck && reelCheck.length > 0) {
           isReelTarget = true;
         }
       } catch (_) {}
     }
 
-    if (supabaseAdmin.isConfigured) {
-      const inserted = await supabaseAdmin.insert('comments', {
-        post_id: isReelTarget ? null : targetId,
-        reel_id: isReelTarget ? targetId : null,
-        user_id: userId,
-        author_name: authorName,
-        author_username: authorUsername,
-        author_avatar: authorAvatar,
-        content: content,
-        reply_to: commentData.replyTo || commentData.reply_to || null,
-      });
-
-      const row = inserted && inserted.length > 0 ? inserted[0] : null;
-      return {
-        id: row ? row.id : `comment_${Date.now()}`,
-        postId: isReelTarget ? null : targetId,
-        reelId: isReelTarget ? targetId : null,
-        author: authorName,
-        username: authorUsername,
-        avatarUrl: authorAvatar,
-        text: content,
-        replyTo: commentData.replyTo || commentData.reply_to || null,
-        likesCount: 0,
-        dislikesCount: 0,
-        time: 'الآن',
-        createdAt: row ? row.created_at : new Date().toISOString(),
-      };
+    let createdRow = null;
+    if (supabaseAdmin.isConfigured && targetUuid) {
+      try {
+        const insertPayload = {
+          post_id: isReelTarget ? null : targetUuid,
+          reel_id: isReelTarget ? targetUuid : null,
+          user_id: userId,
+          author_name: authorName,
+          author_username: authorUsername,
+          author_avatar: authorAvatar,
+          content: content,
+        };
+        const inserted = await supabaseAdmin.insert('comments', insertPayload);
+        if (inserted && inserted.length > 0) {
+          createdRow = inserted[0];
+        }
+      } catch (err) {
+        console.error('[SocialManager] addComment Supabase insert error:', err.message);
+      }
     }
 
-    return {
-      id: `comment_${Date.now()}`,
+    const commentObj = {
+      id: createdRow ? createdRow.id : `comment_${Date.now()}`,
+      postId: isReelTarget ? null : targetId,
+      reelId: isReelTarget ? targetId : null,
       author: authorName,
       username: authorUsername,
+      avatarUrl: authorAvatar,
       text: content,
       replyTo: commentData.replyTo || commentData.reply_to || null,
       likesCount: 0,
       dislikesCount: 0,
       time: 'الآن',
-      createdAt: new Date().toISOString(),
+      createdAt: createdRow ? createdRow.created_at : new Date().toISOString(),
     };
+
+    if (!this._memoryComments.has(targetId)) {
+      this._memoryComments.set(targetId, []);
+    }
+    this._memoryComments.get(targetId).unshift(commentObj);
+
+    return commentObj;
   }
 
   // --- POST INTERACTIONS (LIKES & REPOSTS) ---
@@ -144,25 +178,14 @@ class SocialManager {
 
   async voteComment(commentId, voteType = 'like') {
     if (!commentId) return { ok: false, error: 'Missing commentId' };
-    if (supabaseAdmin.isConfigured) {
-      try {
-        const rows = await supabaseAdmin.select('comments', `id=eq.${commentId}&select=likes_count,dislikes_count`);
-        if (rows && rows.length > 0) {
-          let likes = rows[0].likes_count || 0;
-          let dislikes = rows[0].dislikes_count || 0;
-          if (voteType === 'dislike') {
-            dislikes += 1;
-          } else {
-            likes += 1;
-          }
-          await supabaseAdmin.update('comments', { likes_count: likes, dislikes_count: dislikes }, `id=eq.${commentId}`);
-          return { ok: true, likesCount: likes, dislikesCount: dislikes };
-        }
-      } catch (err) {
-        console.error('[SocialManager] voteComment error:', err.message);
-      }
+    const curr = this._commentVotes.get(commentId) || { likes: 0, dislikes: 0 };
+    if (voteType === 'dislike') {
+      curr.dislikes += 1;
+    } else {
+      curr.likes += 1;
     }
-    return { ok: true, likesCount: voteType === 'like' ? 1 : 0, dislikesCount: voteType === 'dislike' ? 1 : 0 };
+    this._commentVotes.set(commentId, curr);
+    return { ok: true, likesCount: curr.likes, dislikesCount: curr.dislikes };
   }
 
   // --- NOTIFICATIONS ---

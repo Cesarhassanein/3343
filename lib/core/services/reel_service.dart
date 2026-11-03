@@ -614,15 +614,20 @@ class ReelService {
     final client = SupabaseConfig.client;
     if (client != null) {
       try {
-        await client.from('comments').insert({
-          'reel_id': reel.id,
-          'user_id': user.id.isNotEmpty ? user.id : null,
-          'author_name': user.fullName,
-          'author_username': user.username,
-          'author_avatar': user.avatarUrl ?? '',
-          'content': cleanComment,
-        });
-        await client.from('reels').update({'comments_count': reel.commentsCount}).eq('id', reel.id);
+        final uuidRegex = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+        final userIdValid = uuidRegex.hasMatch(user.id);
+        final reelIdValid = uuidRegex.hasMatch(reel.id);
+        if (reelIdValid) {
+          await client.from('comments').insert({
+            'reel_id': reel.id,
+            'user_id': userIdValid ? user.id : null,
+            'author_name': user.fullName,
+            'author_username': user.username,
+            'author_avatar': user.avatarUrl ?? '',
+            'content': cleanComment,
+          });
+          await client.from('reels').update({'comments_count': reel.commentsCount}).eq('id', reel.id);
+        }
       } catch (_) {}
     }
 

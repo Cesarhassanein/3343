@@ -130,11 +130,11 @@ class ApiRouter {
       if (pathname === '/api/app/version' && method === 'GET') {
         sendJson(res, 200, {
           ok: true,
-          latestVersion: '1.0.3',
-          versionCode: 3,
+          latestVersion: '1.0.4',
+          versionCode: 4,
           downloadUrl: 'https://github.com/Cesarhassanein/3343/releases/latest/download/app-release.apk',
           directApkUrl: 'https://3343-rosy.vercel.app/api/app/download',
-          releaseNotes: 'تحديث ودق رقم 3: تحسين قسم المنشورات، التفاعلات، التعليقات والسرعة العالية للرفع والتحميل 🚀',
+          releaseNotes: 'تحديث ودق الكبير v1.0.4 🚀\n- إضافة قسم إعدادات الريلز الشامل مع أذونات الخصوصية والمحذوف مؤخراً\n- إضافة تخصيص المراسلات والخلفيات والمجلدات\n- إصلاح حفظ وعرض التعليقات فورياً\n- تسريع فائق لرفع الفيديوهات والصور',
           isForced: false,
           minVersionCode: 1,
         });
