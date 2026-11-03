@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: 1. فحص الكود (Checkout Code)
         uses: actions/checkout@v4
+      - name: Force iOS deployment target
+        run: |
+          sed -i '' "s/platform :ios, '.*'/platform :ios, '15.0'/" ios/Podfile
+          sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" ios/Runner.xcodeproj/project.pbxproj
 
       - name: 2. إعداد فلاتر (Set up Flutter)
         uses: subosito/flutter-action@v2
