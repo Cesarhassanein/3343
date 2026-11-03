@@ -148,10 +148,14 @@ class ApiRouter {
         const protocol = req.headers['x-forwarded-proto'] || (host.startsWith('localhost') ? 'http' : 'https');
         const baseUrl = `${protocol}://${host}`;
 
+        // إذا لم يكن ملف الـ APK أو الرابط جاهزاً، يبقى رقم الإصدار مساوياً للنسخة الحالية (3) حتى لا يظهر إشعار للمستخدمين
+        const effectiveVersionCode = hasApk ? 4 : 3;
+        const effectiveVersionName = hasApk ? '1.0.4' : '1.0.3';
+
         sendJson(res, 200, {
           ok: true,
-          latestVersion: '1.0.4',
-          versionCode: 4,
+          latestVersion: effectiveVersionName,
+          versionCode: effectiveVersionCode,
           hasApk: hasApk,
           hasIpa: hasIpa,
           downloadUrl: hasApk ? `${baseUrl}/api/app/download` : '',
