@@ -131,6 +131,7 @@ class ApiRouter {
         const fs = require('fs');
         const path = require('path');
         const candidateApkPaths = [
+          path.join(process.cwd(), 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'build', 'web', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', '3343', 'downloads', 'app-release.apk'),
@@ -138,6 +139,7 @@ class ApiRouter {
         const hasApk = candidateApkPaths.some(p => fs.existsSync(p));
 
         const candidateIpaPaths = [
+          path.join(process.cwd(), 'downloads', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', 'downloads', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', 'build', 'ios', 'iphoneos', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', '3343', 'downloads', 'Wadiq.ipa'),
@@ -173,6 +175,7 @@ class ApiRouter {
         const fs = require('fs');
         const path = require('path');
         const candidateApkPaths = [
+          path.join(process.cwd(), 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'build', 'web', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', '3343', 'downloads', 'app-release.apk'),
@@ -207,6 +210,7 @@ class ApiRouter {
         const fs = require('fs');
         const path = require('path');
         const candidateIpaPaths = [
+          path.join(process.cwd(), 'downloads', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', 'downloads', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', 'build', 'ios', 'iphoneos', 'Wadiq.ipa'),
           path.join(__dirname, '..', '..', '3343', 'downloads', 'Wadiq.ipa'),

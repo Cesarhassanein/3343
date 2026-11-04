@@ -562,6 +562,8 @@ class ReelService {
       'user': user.fullName,
       'username': user.username,
       'avatar': user.avatarUrl ?? '',
+      'avatarUrl': user.avatarUrl ?? '',
+      'author_avatar': user.avatarUrl ?? '',
       'comment': cleanComment,
       'time': 'الآن',
       'likesCount': 0,

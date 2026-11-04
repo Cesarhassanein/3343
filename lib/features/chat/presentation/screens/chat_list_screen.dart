@@ -6,6 +6,7 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/chat_settings_service.dart';
 import 'chat_room_screen.dart';
 import '../../../creation/presentation/screens/create_group_channel_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -481,6 +482,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
                       : "@${chat.username}",
               isChannel: chat.isChannel,
               avatarChar: avatarChar,
+              avatarUrl: chat.avatarUrl,
               conversationId: chat.id,
               recipientUsername: chat.username,
             ),
@@ -493,17 +495,11 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
           children: [
             Stack(
               children: [
-                CircleAvatar(
+                WadiqAvatar(
+                  avatarUrl: chat.avatarUrl,
+                  fallbackInitial: avatarChar,
                   radius: 26,
-                  backgroundColor: WadiqColors.elevatedSurface,
-                  child: Text(
-                    avatarChar,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: WadiqColors.primaryAmber,
-                    ),
-                  ),
+                  fontSize: 18,
                 ),
                 if (chat.isChannel)
                   Positioned(

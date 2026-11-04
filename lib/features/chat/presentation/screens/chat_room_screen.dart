@@ -9,12 +9,14 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/wadiq_api_service.dart';
 import 'channel_info_screen.dart';
 import 'call_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String title;
   final String subtitle;
   final bool isChannel;
   final String avatarChar;
+  final String? avatarUrl;
   final String conversationId;
   final String? recipientUsername;
 
@@ -24,6 +26,7 @@ class ChatRoomScreen extends StatefulWidget {
     required this.subtitle,
     this.isChannel = false,
     required this.avatarChar,
+    this.avatarUrl,
     this.conversationId = 'conv_1',
     this.recipientUsername,
   });
@@ -389,17 +392,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 },
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    WadiqAvatar(
+                      avatarUrl: widget.avatarUrl,
+                      fallbackInitial: widget.avatarChar,
                       radius: 18,
-                      backgroundColor: WadiqColors.elevatedSurface,
-                      child: Text(
-                        widget.avatarChar,
-                        style: const TextStyle(
-                          color: WadiqColors.primaryAmber,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(

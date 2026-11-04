@@ -48,6 +48,7 @@ app.*.map.json
 .env
 *.local.env
 cloudflared.exe
+downloads/
 
 # Local storage caches
 storage/cache/

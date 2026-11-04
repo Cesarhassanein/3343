@@ -10,6 +10,7 @@ import '../../../feed/presentation/screens/saved_posts_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../../core/services/update_service.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -100,6 +101,7 @@ class _MoreScreenState extends State<MoreScreen> {
                         role: user.role,
                         avatarChar: avatarLetter,
                         handle: '@${user.username}',
+                        avatarUrl: user.avatarUrl,
                       ),
                     ),
                   ).then((_) => _loadStats());
@@ -114,22 +116,11 @@ class _MoreScreenState extends State<MoreScreen> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: const BoxDecoration(
-                          gradient: WadiqColors.amberGradient,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            avatarLetter,
-                            style: WadiqTypography.titleLarge.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      WadiqAvatar(
+                        avatarUrl: user.avatarUrl,
+                        fallbackInitial: avatarLetter,
+                        radius: 29,
+                        fontSize: 22,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -287,6 +278,7 @@ class _MoreScreenState extends State<MoreScreen> {
                               role: user.role,
                               avatarChar: avatarLetter,
                               handle: '@${user.username}',
+                              avatarUrl: user.avatarUrl,
                             ),
                           ),
                         );

@@ -282,6 +282,52 @@ class ChatService {
             );
           }
         }
+
+        // Fetch avatars & display names for direct conversations from profiles
+        final usernamesToFetch = convMap.values
+            .where((c) => !c.isChannel && !c.isGroup && c.username.isNotEmpty && (c.avatarUrl == null || c.avatarUrl!.isEmpty))
+            .map((c) => c.username)
+            .toSet()
+            .toList();
+
+        if (usernamesToFetch.isNotEmpty) {
+          try {
+            final profilesRes = await client
+                .from('profiles')
+                .select('username, avatar_url, full_name')
+                .filter('username', 'in', usernamesToFetch);
+
+            final Map<String, Map<String, dynamic>> profileMap = {};
+            for (final p in (profilesRes as List<dynamic>)) {
+              final un = p['username']?.toString().toLowerCase() ?? '';
+              if (un.isNotEmpty) profileMap[un] = Map<String, dynamic>.from(p as Map);
+            }
+
+            for (final key in convMap.keys.toList()) {
+              final c = convMap[key]!;
+              final p = profileMap[c.username.toLowerCase()];
+              if (p != null) {
+                final av = p['avatar_url']?.toString();
+                final fn = p['full_name']?.toString();
+                convMap[key] = ConversationSummary(
+                  id: c.id,
+                  name: (fn != null && fn.isNotEmpty && !c.isChannel && !c.isGroup) ? fn : c.name,
+                  username: c.username,
+                  lastMessage: c.lastMessage,
+                  time: c.time,
+                  isChannel: c.isChannel,
+                  isGroup: c.isGroup,
+                  ownerUsername: c.ownerUsername,
+                  adminUsernames: c.adminUsernames,
+                  memberUsernames: c.memberUsernames,
+                  avatarUrl: av,
+                  description: c.description,
+                  isMuted: c.isMuted,
+                );
+              }
+            }
+          } catch (_) {}
+        }
       } catch (e) {
         debugPrint('Error fetching conversations: $e');
       }

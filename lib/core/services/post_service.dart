@@ -11,6 +11,7 @@ class PostModel {
   final String authorName;
   final String authorUsername;
   final String authorRole;
+  String? authorAvatar;
   final String content;
   final List<String> mediaUrls;
   final String? pollQuestion;
@@ -34,6 +35,7 @@ class PostModel {
     required this.authorName,
     required this.authorUsername,
     this.authorRole = 'طالب',
+    this.authorAvatar,
     required this.content,
     this.mediaUrls = const [],
     this.pollQuestion,
@@ -110,6 +112,7 @@ class PostModel {
     'id': id,
     'author_name': authorName,
     'author_username': authorUsername,
+    'author_avatar': authorAvatar,
     'content': content,
     'media_urls': mediaUrls,
     'poll_question': pollQuestion,
@@ -142,6 +145,7 @@ class PostModel {
       authorName: map['author_name']?.toString() ?? 'مستخدم ودق',
       authorUsername: map['author_username']?.toString() ?? 'user',
       authorRole: map['author_role']?.toString() ?? 'طالب',
+      authorAvatar: map['author_avatar']?.toString() ?? map['avatar_url']?.toString(),
       content: map['content']?.toString() ?? '',
       mediaUrls: mediaList,
       pollQuestion: map['poll_question']?.toString(),
@@ -393,6 +397,13 @@ class PostService {
               p.userReaction = 'like';
             }
 
+            if (p.authorAvatar == null || p.authorAvatar!.isEmpty) {
+              final myUser = AuthService.instance.currentUser;
+              if (p.authorUsername.toLowerCase() == myUser.username.toLowerCase()) {
+                p.authorAvatar = myUser.avatarUrl;
+              }
+            }
+
             // Asynchronously load persisted comments from backend
             WadiqApiService.instance.getPostComments(p.id).then((loadedComments) {
               if (loadedComments.isNotEmpty) {
@@ -401,6 +412,40 @@ class PostService {
                 p.commentsCount = loadedComments.length;
               }
             });
+          }
+
+          // Batch fetch avatars from profiles for posts missing authorAvatar
+          final missingAuthors = combined
+              .where((p) => (p.authorAvatar == null || p.authorAvatar!.isEmpty) && p.authorUsername.isNotEmpty)
+              .map((p) => p.authorUsername.toLowerCase())
+              .toSet()
+              .toList();
+
+          if (missingAuthors.isNotEmpty) {
+            try {
+              final profilesRes = await client
+                  .from('profiles')
+                  .select('username, avatar_url')
+                  .filter('username', 'in', missingAuthors);
+
+              final Map<String, String> authorAvatarMap = {};
+              for (final prof in (profilesRes as List<dynamic>)) {
+                final un = prof['username']?.toString().toLowerCase() ?? '';
+                final av = prof['avatar_url']?.toString() ?? '';
+                if (un.isNotEmpty && av.isNotEmpty) {
+                  authorAvatarMap[un] = av;
+                }
+              }
+
+              for (final post in combined) {
+                if (post.authorAvatar == null || post.authorAvatar!.isEmpty) {
+                  final un = post.authorUsername.toLowerCase();
+                  if (authorAvatarMap.containsKey(un)) {
+                    post.authorAvatar = authorAvatarMap[un];
+                  }
+                }
+              }
+            } catch (_) {}
           }
 
           // Filter out blocked users and hidden posts
@@ -477,6 +522,7 @@ class PostService {
       authorName: user.fullName,
       authorUsername: user.username,
       authorRole: user.role,
+      authorAvatar: user.avatarUrl,
       content: content,
       mediaUrls: mediaUrls,
       pollQuestion: pollQuestion,
@@ -494,6 +540,7 @@ class PostService {
         await client.from('posts').insert({
           'author_name': user.fullName,
           'author_username': user.username,
+          'author_avatar': user.avatarUrl,
           'content': content,
           'media_urls': mediaUrls,
           'poll_question': pollQuestion,
@@ -688,6 +735,8 @@ class PostService {
       'id': nowId,
       'author': user.fullName.isNotEmpty ? user.fullName : user.username,
       'username': user.username,
+      'avatarUrl': user.avatarUrl,
+      'author_avatar': user.avatarUrl,
       'role': user.role,
       'time': 'الآن',
       'text': text.trim(),

@@ -15,6 +15,7 @@ import '../../../search/presentation/screens/global_search_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../moderation/presentation/widgets/moderation_report_dialog.dart';
 import '../../../creation/presentation/screens/create_post_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -727,13 +728,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           children: [
             Row(
               children: [
-                CircleAvatar(
+                WadiqAvatar(
+                  avatarUrl: comment['avatarUrl']?.toString() ?? comment['author_avatar']?.toString(),
+                  fallbackInitial: authorName,
                   radius: 14,
-                  backgroundColor: WadiqColors.cardSurface,
-                  child: Text(
-                    authorName.isNotEmpty ? authorName[0] : 'و',
-                    style: const TextStyle(fontSize: 12, color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
-                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1142,20 +1140,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                             role: post.authorRole,
                             handle: "@${post.authorUsername}",
                             avatarChar: post.authorName.isNotEmpty ? post.authorName.substring(0, 1) : "و",
+                            avatarUrl: post.authorAvatar,
                           ),
                         ),
                       );
                     },
-                    child: CircleAvatar(
+                    child: WadiqAvatar(
+                      avatarUrl: post.authorAvatar,
+                      fallbackInitial: post.authorName,
                       radius: 20,
-                      backgroundColor: WadiqColors.elevatedSurface,
-                      child: Text(
-                        post.authorName.isNotEmpty ? post.authorName.substring(0, 1) : "و",
-                        style: const TextStyle(
-                          color: WadiqColors.primaryAmber,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1170,6 +1163,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                               role: post.authorRole,
                               handle: "@${post.authorUsername}",
                               avatarChar: post.authorName.isNotEmpty ? post.authorName.substring(0, 1) : "و",
+                              avatarUrl: post.authorAvatar,
                             ),
                           ),
                         );

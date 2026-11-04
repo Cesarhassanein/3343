@@ -11,6 +11,7 @@ import '../../../../core/services/wadiq_api_service.dart';
 import '../widgets/reel_video_player_widget.dart';
 import '../../../profile/presentation/screens/user_profile_screen.dart';
 import '../../../creation/presentation/screens/create_reel_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class ReelsScreen extends StatefulWidget {
   final bool isActive;
@@ -895,15 +896,10 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Row(
                             children: [
-                              CircleAvatar(
+                              WadiqAvatar(
+                                avatarUrl: AuthService.instance.currentUser.avatarUrl,
+                                fallbackInitial: AuthService.instance.currentUser.fullName,
                                 radius: 16,
-                                backgroundColor: WadiqColors.primaryAmber,
-                                child: Text(
-                                  AuthService.instance.currentUser.fullName.isNotEmpty
-                                      ? AuthService.instance.currentUser.fullName[0].toUpperCase()
-                                      : 'و',
-                                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -978,13 +974,10 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              WadiqAvatar(
+                avatarUrl: comment['avatarUrl']?.toString() ?? comment['avatar']?.toString() ?? comment['author_avatar']?.toString(),
+                fallbackInitial: authorFullName,
                 radius: 16,
-                backgroundColor: WadiqColors.elevatedSurface,
-                child: Text(
-                  authorFullName.isNotEmpty ? authorFullName[0].toUpperCase() : 'و',
-                  style: const TextStyle(fontSize: 12, color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
-                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1080,13 +1073,10 @@ class _ReelsScreenState extends State<ReelsScreen> with TickerProviderStateMixin
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  CircleAvatar(
+                                  WadiqAvatar(
+                                    avatarUrl: rMap['avatarUrl']?.toString() ?? rMap['avatar']?.toString() ?? rMap['author_avatar']?.toString(),
+                                    fallbackInitial: rMap['user']?.toString() ?? 'م',
                                     radius: 12,
-                                    backgroundColor: WadiqColors.elevatedSurface,
-                                    child: Text(
-                                      (rMap['user'] ?? 'م')[0],
-                                      style: const TextStyle(fontSize: 10, color: WadiqColors.primaryAmber),
-                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(

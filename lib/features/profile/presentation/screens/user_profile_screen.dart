@@ -12,6 +12,7 @@ import '../../../../core/services/supabase_config.dart';
 import '../../../chat/presentation/screens/chat_room_screen.dart';
 import '../../../feed/presentation/screens/post_detail_screen.dart';
 import '../../../reels/presentation/screens/reel_detail_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String name;
@@ -219,14 +220,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
           child: _isFollowing
               ? ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: WadiqColors.primaryAmber,
-                    child: Text(
-                      AuthService.instance.currentUser.fullName.isNotEmpty
-                          ? AuthService.instance.currentUser.fullName[0]
-                          : 'أ',
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                    ),
+                  leading: WadiqAvatar(
+                    avatarUrl: AuthService.instance.currentUser.avatarUrl,
+                    fallbackInitial: AuthService.instance.currentUser.fullName,
+                    radius: 20,
                   ),
                   title: Text(AuthService.instance.currentUser.fullName, style: WadiqTypography.titleMedium),
                   subtitle: Text("@${AuthService.instance.currentUser.username} • أنت", style: WadiqTypography.caption),
@@ -266,6 +263,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
           title: widget.name,
           subtitle: "@$_cleanUsername",
           avatarChar: widget.avatarChar,
+          avatarUrl: _avatarUrl,
           conversationId: convId,
         ),
       ),

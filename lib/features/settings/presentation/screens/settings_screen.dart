@@ -6,6 +6,7 @@ import '../../../auth/presentation/screens/login_screen.dart';
 import 'chat_appearance_settings_screen.dart';
 import 'chat_folders_settings_screen.dart';
 import 'reels_main_settings_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -184,23 +185,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    gradient: WadiqColors.amberGradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                WadiqAvatar(
+                  avatarUrl: user.avatarUrl,
+                  fallbackInitial: initial,
+                  radius: 28,
+                  fontSize: 22,
                 ),
                 const SizedBox(width: 14),
                 Expanded(

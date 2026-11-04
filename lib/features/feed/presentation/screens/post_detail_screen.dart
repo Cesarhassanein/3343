@@ -11,6 +11,7 @@ import '../../../../core/services/chat_service.dart';
 import '../../../profile/presentation/screens/user_profile_screen.dart';
 import '../../../moderation/presentation/widgets/moderation_report_dialog.dart';
 import '../../../creation/presentation/screens/create_post_screen.dart';
+import '../../../../core/widgets/wadiq_avatar.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final PostModel post;
@@ -453,17 +454,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                     role: widget.post.authorRole,
                                     handle: "@${widget.post.authorUsername}",
                                     avatarChar: widget.post.authorName.isNotEmpty ? widget.post.authorName[0] : "و",
+                                    avatarUrl: widget.post.authorAvatar,
                                   ),
                                 ),
                               );
                             },
-                            child: CircleAvatar(
+                            child: WadiqAvatar(
+                              avatarUrl: widget.post.authorAvatar,
+                              fallbackInitial: widget.post.authorName,
                               radius: 20,
-                              backgroundColor: WadiqColors.elevatedSurface,
-                              child: Text(
-                                widget.post.authorName.isNotEmpty ? widget.post.authorName[0] : "و",
-                                style: const TextStyle(color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
-                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -683,13 +682,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
+                                    WadiqAvatar(
+                                      avatarUrl: comment['avatarUrl']?.toString() ?? comment['author_avatar']?.toString(),
+                                      fallbackInitial: author,
                                       radius: 14,
-                                      backgroundColor: WadiqColors.elevatedSurface,
-                                      child: Text(
-                                        author.isNotEmpty ? author[0] : 'أ',
-                                        style: const TextStyle(fontSize: 12, color: WadiqColors.primaryAmber, fontWeight: FontWeight.bold),
-                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     // Full Name
