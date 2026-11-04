@@ -20,10 +20,6 @@ jobs:
     steps:
       - name: 1. فحص الكود (Checkout Code)
         uses: actions/checkout@v4
-      - name: Force iOS deployment target
-        run: |
-          sed -i '' "s/platform :ios, '.*'/platform :ios, '15.0'/" ios/Podfile
-          sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" ios/Runner.xcodeproj/project.pbxproj
 
       - name: 2. إعداد فلاتر (Set up Flutter)
         uses: subosito/flutter-action@v2
@@ -31,17 +27,18 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 3. تحميل حزم فلاتر (Get Dependencies)
+      - name: 3. تحميل متطلبات محرك iOS (Precache iOS Artifacts)
+        run: flutter precache --ios
+
+      - name: 4. تحميل حزم فلاتر (Get Dependencies)
         run: flutter pub get
 
-      - name: 4. تثبيت حزم CocoaPods للـ iOS
+      - name: 5. تهيئة إعدادات iOS و CocoaPods
         run: |
-          cd ios
-          pod install --repo-update
-          cd ..
+          flutter build ios --config-only --no-codesign
 
-      - name: 5. تثبيت شهادات أبل للتوقيع (إذا تم اختيار signed ووجدت الأسرار)
-        if: ${{ inputs.build_type == 'signed' && env.CERT_BASE64 != '' }}
+      - name: 6. تثبيت شهادات أبل للتوقيع (إذا تم اختيار signed ووجدت الأسرار)
+        if: ${{ inputs.build_type == 'signed' && secrets.APPLE_CERTIFICATE_BASE64 != '' }}
         env:
           CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERT_PWD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -63,13 +60,15 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
-      - name: 6. بناء ملف iOS (Build iOS Release)
+      - name: 7. بناء ملف iOS (Build iOS Release)
+        env:
+          APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
         run: |
-          if [ "${{ inputs.build_type }}" = "signed" ] && [ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]; then
+          if [ "${{ inputs.build_type }}" = "signed" ] && [ -n "$APPLE_CERT" ]; then
             echo "--- بناء IPA موقّع رسمياً ---"
             flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
           else
-            echo "--- بناء IPA غير موقّع (جاهز للتثبيت عبر Sideloadly / TrollStore / AltStore) ---"
+            echo "--- بناء IPA غير موقّع (جاهز للتثبيت عبر Sideloadly / TrollStore / AltStore / Scarlet) ---"
             flutter build ios --release --no-codesign
             mkdir -p build/ios/iphoneos/Payload
             cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
@@ -78,12 +77,12 @@ jobs:
             cd ../../..
           fi
 
-      - name: 7. رفع ملف الـ IPA إلى قسم التحميلات (Upload Artifacts)
+      - name: 8. رفع ملف الـ IPA إلى قسم التحميلات (Upload Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: Wadiq-iOS-Release
           path: |
             build/ios/iphoneos/Wadiq.ipa
-            build/ios/archive/Runner.xcarchive
             build/ios/ipa/*.ipa
+          if-no-files-found: ignore
           retention-days: 14
