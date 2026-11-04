@@ -16,6 +16,8 @@ jobs:
   build_ios:
     name: Build iOS IPA
     runs-on: macos-14
+    env:
+      APPLE_CERT_EXISTS: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
 
     steps:
       - name: 1. فحص الكود (Checkout Code)
@@ -27,18 +29,18 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: 3. تحميل متطلبات محرك iOS (Precache iOS Artifacts)
-        run: flutter precache --ios
-
-      - name: 4. تحميل حزم فلاتر (Get Dependencies)
+      - name: 3. تحميل حزم فلاتر (Get Dependencies)
         run: flutter pub get
 
-      - name: 5. تهيئة إعدادات iOS و CocoaPods
+      - name: 4. تهيئة CocoaPods وإعدادات iOS
         run: |
+          cd ios
+          pod repo update || true
+          cd ..
           flutter build ios --config-only --no-codesign
 
-      - name: 6. تثبيت شهادات أبل للتوقيع (إذا تم اختيار signed ووجدت الأسرار)
-        if: ${{ inputs.build_type == 'signed' && secrets.APPLE_CERTIFICATE_BASE64 != '' }}
+      - name: 5. تثبيت شهادات أبل للتوقيع (إذا تم اختيار signed ووجدت الأسرار)
+        if: ${{ inputs.build_type == 'signed' && env.APPLE_CERT_EXISTS != '' }}
         env:
           CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           CERT_PWD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -60,7 +62,7 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
-      - name: 7. بناء ملف iOS (Build iOS Release)
+      - name: 6. بناء ملف iOS (Build iOS Release)
         env:
           APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
         run: |
@@ -77,7 +79,7 @@ jobs:
             cd ../../..
           fi
 
-      - name: 8. رفع ملف الـ IPA إلى قسم التحميلات (Upload Artifacts)
+      - name: 7. رفع ملف الـ IPA إلى قسم التحميلات (Upload Artifacts)
         uses: actions/upload-artifact@v4
         with:
           name: Wadiq-iOS-Release
