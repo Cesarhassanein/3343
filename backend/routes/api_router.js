@@ -160,8 +160,8 @@ class ApiRouter {
           versionCode: effectiveVersionCode,
           hasApk: hasApk,
           hasIpa: hasIpa,
-          downloadUrl: hasApk ? `${baseUrl}/api/app/download` : '',
-          directApkUrl: hasApk ? `${baseUrl}/api/app/download` : '',
+          downloadUrl: `${baseUrl}/downloads/app-release.apk`,
+          directApkUrl: `${baseUrl}/downloads/app-release.apk`,
           ipaUrl: hasIpa ? `${baseUrl}/api/app/download/ipa` : '',
           releaseNotes: 'تحديث ودق الكبير v1.0.4 🚀\n- إضافة قسم إعدادات الريلز الشامل مع أذونات الخصوصية والمحذوف مؤخراً\n- إضافة تخصيص المراسلات والخلفيات والمجلدات\n- إصلاح حفظ وعرض التعليقات فورياً\n- تسريع فائق لرفع الفيديوهات والصور',
           isForced: false,
@@ -176,9 +176,12 @@ class ApiRouter {
         const path = require('path');
         const candidateApkPaths = [
           path.join(process.cwd(), 'downloads', 'app-release.apk'),
+          path.join(process.cwd(), 'public', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', 'public', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', 'build', 'web', 'downloads', 'app-release.apk'),
           path.join(__dirname, '..', '..', '3343', 'downloads', 'app-release.apk'),
+          path.join(__dirname, '..', '..', '3343', 'public', 'downloads', 'app-release.apk'),
         ];
         let foundPath = null;
         for (const p of candidateApkPaths) {
@@ -201,7 +204,12 @@ class ApiRouter {
           return true;
         }
 
-        sendJson(res, 404, { ok: false, error: 'ملف الـ APK غير جاهز للتحميل بعد، سيتم إتاحته قريباً.' });
+        // On serverless (Vercel): redirect directly to CDN static file
+        res.writeHead(302, {
+          'Location': `${baseUrl}/downloads/app-release.apk`,
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end();
         return true;
       }
 

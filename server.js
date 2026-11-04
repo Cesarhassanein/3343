@@ -39,8 +39,16 @@ const server = http.createServer(async (req, res) => {
 
   let filePath = path.join(WEB_DIR, reqPath);
 
-  // Fallback for single page applications if build/web exists
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  // Direct downloads folder support
+  if (reqPath.startsWith('/downloads/')) {
+    const directPath = path.join(__dirname, reqPath);
+    const publicPath = path.join(__dirname, 'public', reqPath);
+    if (fs.existsSync(directPath)) {
+      filePath = directPath;
+    } else if (fs.existsSync(publicPath)) {
+      filePath = publicPath;
+    }
+  } else if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     filePath = path.join(WEB_DIR, 'index.html');
   }
 
